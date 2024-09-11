@@ -1,20 +1,23 @@
-use chrono::{NaiveDate, TimeDelta};
+use mysql::prelude::Queryable;
+use time::{Date, Duration};
 
 /// A row in the job application table
+#[derive(Debug)]
 pub struct JobApplication {
     pub id: i32,
     pub source: String,
     pub company: String,
     pub job_title: String,
-    pub application_date: NaiveDate,
-    pub time_investment: TimeDelta,
+    pub application_date: Date,
+    pub time_investment: Duration,
     pub automated_response: bool,
     pub human_response: HumanResponse,
-    pub human_response_date: NaiveDate,
+    pub human_response_date: Date,
     pub application_website: String,
     pub notes: String
 }
 
+#[derive(Debug)]
 pub enum HumanResponse {
     None,
     Rejection,
@@ -22,8 +25,53 @@ pub enum HumanResponse {
 }
 
 /// Get all job applications
-pub fn get_job_applications() -> Result<Vec<JobApplication>, Box<dyn std::error::Error>> {
-    todo!()
+pub fn get_job_applications<C: Queryable>(conn: &mut C) -> Result<Vec<JobApplication>, mysql::Error> {
+    conn.query_map(
+        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes FROM job_applications",
+        |(id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes): (
+            i32,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            Option<Date>,
+            Option<Duration>,
+            Option<String>,
+            Option<String>,
+            Option<Date>,
+            Option<String>,
+            Option<String>
+        )| {
+            JobApplication {
+                id,
+                source: source.unwrap_or("".to_string()),
+                company: company.unwrap_or("".to_string()),
+                job_title: job_title.unwrap_or("".to_string()),
+                application_date: application_date.unwrap_or(Date::from_ordinal_date(2000, 1).unwrap()),
+                time_investment: time_investment.unwrap_or(Duration::ZERO),
+                automated_response: {
+                    if let Some(e) = automated_response {
+                        e.as_str() == "Y"
+                    } else {
+                        false
+                    }
+                },
+                human_response: {
+                    if let Some(human_response_unwrapped) = human_response {
+                        match human_response_unwrapped.as_str() {
+                            "Interview request" => HumanResponse::InterviewRequest,
+                            "Rejection" => HumanResponse::Rejection,
+                            _ => HumanResponse::None
+                        }
+                    } else {
+                        HumanResponse::None
+                    }
+                },
+                human_response_date: human_response_date.unwrap_or(Date::from_ordinal_date(2000, 1).unwrap()),
+                application_website: application_website.unwrap_or("".to_string()),
+                notes: notes.unwrap_or("".to_string())
+            }
+        }
+    )
 }
 
 /// Get all job applications where `human_response == None`
