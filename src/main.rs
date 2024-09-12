@@ -1,16 +1,24 @@
 use std::env;
 
 use dotenv::dotenv;
-use mysql::{OptsBuilder, Pool};
+use mysql::{OptsBuilder, Pool, PooledConn};
 use repository::job_application_repository::{get_job_applications, JobApplication};
 
-mod repository {
-    pub mod job_application_repository;
-}
+mod repository;
 
 fn main() {
-    dotenv().unwrap();
+    dotenv().ok();
+    let mut conn = get_conn().unwrap();
 
+    let job_applications: Vec<JobApplication> = get_job_applications(&mut conn).unwrap();
+
+    for job_application in job_applications {
+        println!("{:?}", job_application);
+    }
+}
+
+/// Boilerplate for getting connection information from environment
+fn get_conn() -> Result<PooledConn, mysql::Error> {
     let mut sql_opts_builder = OptsBuilder::new();
     if let Ok(host_name) = env::var("DB_HOST") {
         sql_opts_builder = sql_opts_builder.ip_or_hostname(Some(host_name));
@@ -30,12 +38,6 @@ fn main() {
         sql_opts_builder = sql_opts_builder.db_name(Some(db_name));
     }
 
-    let pool = Pool::new(sql_opts_builder).unwrap();
-    let mut conn = pool.get_conn().unwrap();
-
-    let job_applications: Vec<JobApplication> = get_job_applications(&mut conn).unwrap();
-
-    for job_application in job_applications {
-        println!("{:?}", job_application);
-    }
+    let pool = Pool::new(sql_opts_builder)?;
+    pool.get_conn()
 }

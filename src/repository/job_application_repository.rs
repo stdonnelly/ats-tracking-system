@@ -9,12 +9,12 @@ pub struct JobApplication {
     pub company: String,
     pub job_title: String,
     pub application_date: Date,
-    pub time_investment: Duration,
+    pub time_investment: Option<Duration>,
     pub automated_response: bool,
     pub human_response: HumanResponse,
-    pub human_response_date: Date,
-    pub application_website: String,
-    pub notes: String
+    pub human_response_date: Option<Date>,
+    pub application_website: Option<String>,
+    pub notes: Option<String>
 }
 
 #[derive(Debug)]
@@ -28,49 +28,7 @@ pub enum HumanResponse {
 pub fn get_job_applications<C: Queryable>(conn: &mut C) -> Result<Vec<JobApplication>, mysql::Error> {
     conn.query_map(
         "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes FROM job_applications",
-        |(id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes): (
-            i32,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            Option<Date>,
-            Option<Duration>,
-            Option<String>,
-            Option<String>,
-            Option<Date>,
-            Option<String>,
-            Option<String>
-        )| {
-            JobApplication {
-                id,
-                source: source.unwrap_or("".to_string()),
-                company: company.unwrap_or("".to_string()),
-                job_title: job_title.unwrap_or("".to_string()),
-                application_date: application_date.unwrap_or(Date::from_ordinal_date(2000, 1).unwrap()),
-                time_investment: time_investment.unwrap_or(Duration::ZERO),
-                automated_response: {
-                    if let Some(e) = automated_response {
-                        e.as_str() == "Y"
-                    } else {
-                        false
-                    }
-                },
-                human_response: {
-                    if let Some(human_response_unwrapped) = human_response {
-                        match human_response_unwrapped.as_str() {
-                            "Interview request" => HumanResponse::InterviewRequest,
-                            "Rejection" => HumanResponse::Rejection,
-                            _ => HumanResponse::None
-                        }
-                    } else {
-                        HumanResponse::None
-                    }
-                },
-                human_response_date: human_response_date.unwrap_or(Date::from_ordinal_date(2000, 1).unwrap()),
-                application_website: application_website.unwrap_or("".to_string()),
-                notes: notes.unwrap_or("".to_string())
-            }
-        }
+        map_row
     )
 }
 
@@ -92,4 +50,59 @@ pub fn insert_job_application(application: JobApplication) -> Result<JobApplicat
 /// If there is no application with that id, nothing will be changed in the database and an error will be returned
 pub fn update_job_application(application: JobApplication) -> Result<JobApplication, Box<dyn std::error::Error>> {
     todo!()
+}
+
+fn map_row((
+    id,
+    source,
+    company,
+    job_title,
+    application_date,
+    time_investment,
+    automated_response,
+    human_response,
+    human_response_date,
+    application_website,
+    notes): (
+    i32,
+    Option<String>,
+    Option<String>,
+    Option<String>,
+    Option<Date>,
+    Option<Duration>,
+    Option<String>,
+    Option<String>,
+    Option<Date>,
+    Option<String>,
+    Option<String>
+)) -> JobApplication {
+    JobApplication {
+        id,
+        source: source.unwrap_or("".to_string()),
+        company: company.unwrap_or("".to_string()),
+        job_title: job_title.unwrap_or("".to_string()),
+        application_date: application_date.unwrap_or(Date::from_ordinal_date(2000, 1).unwrap()),
+        time_investment,
+        automated_response: {
+            if let Some(e) = automated_response {
+                e.as_str() == "Y"
+            } else {
+                false
+            }
+        },
+        human_response: {
+            if let Some(human_response_unwrapped) = human_response {
+                match human_response_unwrapped.as_str() {
+                    "Interview request" => HumanResponse::InterviewRequest,
+                    "Rejection" => HumanResponse::Rejection,
+                    _ => HumanResponse::None
+                }
+            } else {
+                HumanResponse::None
+            }
+        },
+        human_response_date,
+        application_website,
+        notes
+    }
 }
