@@ -1,3 +1,5 @@
+use std::fmt::{Debug, Display};
+
 use mysql::prelude::Queryable;
 use time::{Date, Duration};
 
@@ -22,6 +24,12 @@ pub enum HumanResponse {
     None,
     Rejection,
     InterviewRequest
+}
+
+impl Display for HumanResponse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Debug::fmt(self, f)
+    }
 }
 
 /// Get all job applications
