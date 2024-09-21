@@ -61,8 +61,15 @@ pub fn get_job_applications<C: Queryable>(
 }
 
 /// Get all job applications where `human_response == None`
-pub fn get_pending_job_applications() -> Result<Vec<JobApplication>, Box<dyn std::error::Error>> {
-    todo!()
+pub fn get_pending_job_applications<C: Queryable>(
+    conn: &mut C,
+) -> Result<Vec<JobApplication>, mysql::Error> {
+    conn.query_map(
+        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
+        FROM job_applications
+        WHERE human_response IS NULL",
+        map_row
+    )
 }
 
 /// Insert a new job application, returning the new application with generated `id` and `application_date`.
