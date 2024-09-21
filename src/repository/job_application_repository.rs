@@ -4,7 +4,7 @@ use mysql::prelude::Queryable;
 use time::{Date, Duration};
 
 /// A row in the job application table
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct JobApplication {
     pub id: i32,
     pub source: String,
@@ -16,26 +16,46 @@ pub struct JobApplication {
     pub human_response: HumanResponse,
     pub human_response_date: Option<Date>,
     pub application_website: Option<String>,
-    pub notes: Option<String>
+    pub notes: Option<String>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum HumanResponse {
     None,
     Rejection,
-    InterviewRequest
+    InterviewRequest,
 }
 
 impl Display for HumanResponse {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(self, f)
+        f.write_str(match self {
+            Self::None => "No response yet",
+            Self::Rejection => "Rejection",
+            Self::InterviewRequest => "Interview Request",
+        })
+    }
+}
+
+impl TryFrom<&str> for HumanResponse {
+    type Error = ();
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value.trim().to_lowercase().as_str() {
+            "interview request" => Ok(HumanResponse::InterviewRequest),
+            "rejection" => Ok(HumanResponse::Rejection),
+            "" => Ok(HumanResponse::None),
+            _ => Err(())
+        }
     }
 }
 
 /// Get all job applications
-pub fn get_job_applications<C: Queryable>(conn: &mut C) -> Result<Vec<JobApplication>, mysql::Error> {
+pub fn get_job_applications<C: Queryable>(
+    conn: &mut C,
+) -> Result<Vec<JobApplication>, mysql::Error> {
     conn.query_map(
-        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes FROM job_applications",
+        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
+        FROM job_applications",
         map_row
     )
 }
@@ -56,11 +76,15 @@ pub fn insert_job_application(application: JobApplication) -> Result<JobApplicat
 /// 
 /// `id` is used to determine what application to overwrite.
 /// If there is no application with that id, nothing will be changed in the database and an error will be returned
-pub fn update_job_application(application: JobApplication) -> Result<JobApplication, Box<dyn std::error::Error>> {
+pub fn update_job_application<C: Queryable>(
+    conn: &mut C,
+    application: JobApplication,
+) -> Result<JobApplication, Box<dyn std::error::Error>> {
     todo!()
 }
 
-fn map_row((
+fn map_row(
+    (
     id,
     source,
     company,
@@ -71,7 +95,8 @@ fn map_row((
     human_response,
     human_response_date,
     application_website,
-    notes): (
+        notes,
+    ): (
     i32,
     Option<String>,
     Option<String>,
@@ -82,8 +107,9 @@ fn map_row((
     Option<String>,
     Option<Date>,
     Option<String>,
-    Option<String>
-)) -> JobApplication {
+        Option<String>,
+    ),
+) -> JobApplication {
     JobApplication {
         id,
         source: source.unwrap_or("".to_string()),
@@ -100,17 +126,14 @@ fn map_row((
         },
         human_response: {
             if let Some(human_response_unwrapped) = human_response {
-                match human_response_unwrapped.as_str() {
-                    "Interview request" => HumanResponse::InterviewRequest,
-                    "Rejection" => HumanResponse::Rejection,
-                    _ => HumanResponse::None
-                }
+                HumanResponse::try_from(human_response_unwrapped.as_str())
+                    .unwrap_or(HumanResponse::None)
             } else {
                 HumanResponse::None
             }
         },
         human_response_date,
         application_website,
-        notes
+        notes,
     }
 }
