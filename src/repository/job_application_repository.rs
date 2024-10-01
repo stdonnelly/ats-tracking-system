@@ -19,7 +19,7 @@ pub struct JobApplication {
     pub notes: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum HumanResponse {
     None,
     Rejection,
@@ -45,6 +45,16 @@ impl TryFrom<&str> for HumanResponse {
             "rejection" => Ok(HumanResponse::Rejection),
             "" => Ok(HumanResponse::None),
             _ => Err(())
+        }
+    }
+}
+
+impl From<HumanResponse> for Option<&str> {
+    fn from(value: HumanResponse) -> Self {
+        match value {
+            HumanResponse::None => None,
+            HumanResponse::Rejection => Some("Rejection"),
+            HumanResponse::InterviewRequest => Some("Interview Request"),
         }
     }
 }
@@ -90,7 +100,7 @@ pub fn insert_job_application<C: Queryable>(
             "application_date" => &application.application_date,
             "time_investment" => &application.time_investment,
             "automated_response" => &application.automated_response,
-            "human_response" => &application.human_response.to_string(),
+            "human_response" => Option::<&str>::from((&application.human_response).to_owned()),
             "human_response_date" => &application.human_response_date,
             "application_website" => &application.application_website,
             "notes" => &application.notes,
@@ -118,7 +128,7 @@ pub fn update_human_response<C: Queryable>(
         WHERE id = :id",
         params! {
             "id" => id,
-            "human_response" => human_response.to_string(),
+            "human_response" => Option::<&str>::from(human_response),
             "human_response_date" => human_response_date
         }
     )?;
