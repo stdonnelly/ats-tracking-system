@@ -5,6 +5,7 @@ use mysql::{OptsBuilder, Pool, PooledConn};
 use repository::job_application_repository::{get_job_applications, JobApplication};
 
 mod repository;
+mod user_interface;
 
 fn main() {
     // Objects that should be owned by the main function
