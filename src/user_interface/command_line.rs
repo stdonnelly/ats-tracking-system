@@ -1,4 +1,7 @@
-use std::io::{self, Write};
+use std::{
+    fmt::Display,
+    io::{self, stdin, stdout, Write},
+};
 
 use mysql::prelude::Queryable;
 use time::{Date, Duration};
@@ -11,11 +14,11 @@ use super::shell_option::{ReadType, ShellOption, UpdateType};
 
 /// The main loop that runs the prompt
 /// Will exit if there is an  
-pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), std::io::Error> {
-    let stdin = std::io::stdin();
+pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
+    let stdin = stdin();
 
     print!("ats tracking> ");
-    io::stdout().flush().unwrap();
+    stdout().flush().unwrap();
     for line in stdin.lines() {
         let input = line?;
 
@@ -36,7 +39,7 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), std::io::Error> {
         };
 
         print!("ats tracking> ");
-        io::stdout().flush().unwrap();
+        stdout().flush().unwrap();
     }
 
     Ok(())
@@ -59,7 +62,6 @@ Available commands:
 
 fn create<C: Queryable>(conn: &mut C) {
     // Declare the variables here to make sure I define all of them
-    let id: i32;
     let source: String;
     let company: String;
     let job_title: String;
@@ -72,11 +74,14 @@ fn create<C: Queryable>(conn: &mut C) {
     let notes: Option<String>;
 
     // Initialize the fields
-    todo!();
+    source = input("Source (job board, referral, etc): ").unwrap();
+    company = input("Company: ").unwrap();
+    job_title = input("Job Title: ").unwrap();
+    // TODO: The rest
 
     // Construct the new application.
     let new_application = JobApplication {
-        id,
+        id: 0,
         source,
         company,
         job_title,
@@ -102,4 +107,24 @@ fn update<C: Queryable>(conn: &mut C, update_type: UpdateType, id: i32) {
 
 fn delete<C: Queryable>(conn: &mut C, id: i32) {
     todo!();
+}
+
+/// Print a prompt and return the input, parsed as `T`.
+/// Returns an Error if stdin.lines() returns an error, or if stdin.lines() ends (this should not happen because stdin should not have EOF).
+fn input<T>(prompt: &str) -> Result<T, io::Error>
+where
+    T: for<'a> TryFrom<&'a str>,
+    for<'a> <T as TryFrom<&'a str>>::Error: Display,
+{
+    print!("{prompt} ");
+    std::io::stdout().flush().unwrap();
+    for line in stdin().lines() {
+        match T::try_from((line?).as_str()) {
+            Ok(o) => return Ok(o),
+            Err(e) => println!("Invalid input: {e}"),
+        }
+    }
+
+    // This should be unreachable
+    Err(io::Error::other("Reached EOF from stdin"))
 }
