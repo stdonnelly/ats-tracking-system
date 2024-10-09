@@ -2,7 +2,8 @@ use std::{env, io::Write, path::Path};
 
 use dotenv::dotenv;
 use mysql::{OptsBuilder, Pool, PooledConn};
-use repository::job_application_repository::{get_job_applications, JobApplication};
+use repository::job_application_repository::JobApplication;
+use user_interface::command_line;
 
 mod repository;
 mod user_interface;
@@ -13,11 +14,13 @@ fn main() {
     let mut conn = get_conn().unwrap();
     let temp_dir = tempfile::TempDir::new().unwrap();
 
-    let job_applications: Vec<JobApplication> = get_job_applications(&mut conn).unwrap();
+    command_line::main_loop(&mut conn).unwrap();
 
-    print_table(job_applications, temp_dir.path()).unwrap();
-    println!("Press [ENTER] to exit");
-    std::io::stdin().read_line(&mut String::new()).unwrap();
+    // let job_applications: Vec<JobApplication> = get_job_applications(&mut conn).unwrap();
+
+    // print_table(job_applications, temp_dir.path()).unwrap();
+    // println!("Press [ENTER] to exit");
+    // std::io::stdin().read_line(&mut String::new()).unwrap();
 }
 
 /// Print the table, then show the results in the native spreadsheet application.
