@@ -1,10 +1,11 @@
 use std::{
+    convert::Infallible,
     fmt::Display,
     io::{self, stdin, stdout, Write},
 };
 
 use mysql::prelude::Queryable;
-use time::{Date, Duration};
+use time::{macros::format_description, Date, Duration};
 
 use crate::repository::job_application_repository::{
     insert_job_application, HumanResponse, JobApplication,
@@ -73,11 +74,47 @@ fn create<C: Queryable>(conn: &mut C) {
     let application_website: Option<String>;
     let notes: Option<String>;
 
+    // This will be used by multiple inputs
+    let wrap_ok = |s: &str| Result::<_, Infallible>::Ok(s.to_owned());
+
     // Initialize the fields
-    source = input("Source (job board, referral, etc): ").unwrap();
-    company = input("Company: ").unwrap();
-    job_title = input("Job Title: ").unwrap();
-    // TODO: The rest
+    source = input("Source (job board, referral, etc): ", wrap_ok).unwrap();
+    company = input("Company: ", wrap_ok).unwrap();
+    job_title = input("Job Title: ", wrap_ok).unwrap();
+    application_date = input("Application date (leave blank for today) (mm/dd/yy):", |s| {
+        if !s.is_empty() {
+            // If a date was given, try to parse it
+            Date::parse(
+                s,
+                format_description!("[month repr:numerical]/[day]/[year repr:last_two]"),
+            )
+        } else {
+            // The string being empty is fine, just use today
+            Ok(time::OffsetDateTime::now_local()
+                .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+                .date())
+        }
+    })
+    .unwrap();
+    time_investment = input("Time taken to complete application (leave blank for unknown) (mm:ss):", |s| {
+        if !s.is_empty() {
+            if let Some((minutes_str, seconds_str)) = s.split_once(':') {
+                let minutes = match minutes_str.parse::<i32>() {
+                    Ok(i) => i,
+                    Err(e) => return Err(e.to_string()),
+                };
+                let seconds = match seconds_str.parse::<i32>() {
+                    Ok(i) => i,
+                    Err(e) => return Err(e.to_string()),
+                };
+                Ok(Some(Duration::seconds((minutes * 60 + seconds) as i64)))
+            } else {
+                Err("No colon found".to_owned())
+            }
+        } else {
+            Ok(None)
+        }
+    }).unwrap();
 
     // Construct the new application.
     let new_application = JobApplication {
@@ -94,7 +131,7 @@ fn create<C: Queryable>(conn: &mut C) {
         notes,
     };
 
-    insert_job_application(new_application);
+    insert_job_application(conn, &new_application);
 }
 
 fn read<C: Queryable>(conn: &mut C, read_type: ReadType) {
@@ -109,22 +146,22 @@ fn delete<C: Queryable>(conn: &mut C, id: i32) {
     todo!();
 }
 
-/// Print a prompt and return the input, parsed as `T`.
+/// Prints a given prompt and returns the input, parsed by `parse` to `T`
 /// Returns an Error if stdin.lines() returns an error, or if stdin.lines() ends (this should not happen because stdin should not have EOF).
-fn input<T>(prompt: &str) -> Result<T, io::Error>
+/// If `parse` returns an error, the program will try again, displaying the error message given by `parse`
+fn input<T, U, F>(prompt: &str, parse: F) -> Result<T, io::Error>
 where
-    T: for<'a> TryFrom<&'a str>,
-    for<'a> <T as TryFrom<&'a str>>::Error: Display,
+    U: Display,
+    F: Fn(&str) -> Result<T, U>,
 {
     print!("{prompt} ");
     std::io::stdout().flush().unwrap();
     for line in stdin().lines() {
-        match T::try_from((line?).as_str()) {
+        match parse((line?).trim()) {
             Ok(o) => return Ok(o),
             Err(e) => println!("Invalid input: {e}"),
         }
     }
 
-    // This should be unreachable
     Err(io::Error::other("Reached EOF from stdin"))
 }
