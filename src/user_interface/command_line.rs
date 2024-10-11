@@ -9,7 +9,7 @@ use mysql::prelude::Queryable;
 use time::{macros::format_description, Date, Duration};
 
 use crate::repository::job_application_repository::{
-    get_job_applications, insert_job_application, HumanResponse, JobApplication,
+    get_job_applications, get_pending_job_applications, insert_job_application, HumanResponse, JobApplication
 };
 
 use super::shell_option::{ReadType, ShellOption, UpdateType};
@@ -204,9 +204,9 @@ fn read<C: Queryable>(
     // Read the job application(s), depending on read type
     let applications: Vec<JobApplication> = match read_type {
         ReadType::All => get_job_applications(conn)?,
-        ReadType::Pending => todo!(),
-        ReadType::Search(query) => todo!(),
-        ReadType::One(id) => todo!(),
+        ReadType::Pending => get_pending_job_applications(conn)?,
+        ReadType::Search(_query) => todo!(),
+        ReadType::One(_id) => todo!(),
     };
 
     match applications.len() {
@@ -283,10 +283,17 @@ fn update<C: Queryable>(
     update_type: UpdateType,
     id: i32,
 ) -> Result<(), Box<dyn std::error::Error>> {
+    // Deal with warnings for now
+    let _ = conn;
+    let _ = update_type;
+    let _ = id;
     todo!();
 }
 
 fn delete<C: Queryable>(conn: &mut C, id: i32) -> Result<(), Box<dyn std::error::Error>> {
+    // Deal with the warnings for now
+    let _ = conn;
+    let _ = id;
     todo!();
 }
 
