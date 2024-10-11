@@ -81,40 +81,101 @@ fn create<C: Queryable>(conn: &mut C) {
     source = input("Source (job board, referral, etc): ", wrap_ok).unwrap();
     company = input("Company: ", wrap_ok).unwrap();
     job_title = input("Job Title: ", wrap_ok).unwrap();
-    application_date = input("Application date (leave blank for today) (mm/dd/yy):", |s| {
-        if !s.is_empty() {
-            // If a date was given, try to parse it
-            Date::parse(
-                s,
-                format_description!("[month repr:numerical]/[day]/[year repr:last_two]"),
-            )
+    application_date = input(
+        "Application date (leave blank for today) (mm/dd/yy):",
+        |s| {
+            if !s.is_empty() {
+                // If a date was given, try to parse it
+                Date::parse(
+                    s,
+                    format_description!("[month repr:numerical]/[day]/[year repr:last_two]"),
+                )
+            } else {
+                // The string being empty is fine, just use today
+                Ok(time::OffsetDateTime::now_local()
+                    .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+                    .date())
+            }
+        },
+    )
+    .unwrap();
+    time_investment = input(
+        "Time taken to complete application (leave blank for unknown) (mm:ss):",
+        |s| {
+            if !s.is_empty() {
+                if let Some((minutes_str, seconds_str)) = s.split_once(':') {
+                    let minutes = match minutes_str.parse::<i32>() {
+                        Ok(i) => i,
+                        Err(e) => return Err(e.to_string()),
+                    };
+                    let seconds = match seconds_str.parse::<i32>() {
+                        Ok(i) => i,
+                        Err(e) => return Err(e.to_string()),
+                    };
+                    Ok(Some(Duration::seconds((minutes * 60 + seconds) as i64)))
+                } else {
+                    Err("No colon found".to_owned())
+                }
+            } else {
+                Ok(None)
+            }
+        },
+    )
+    .unwrap();
+    automated_response = input("Was there an automated email after applying? [y/n]:", |s| {
+        if s.starts_with(&['y', 'Y']) {
+            Ok(true)
+        } else if s.starts_with(&['n', 'N']) {
+            Ok(false)
         } else {
-            // The string being empty is fine, just use today
-            Ok(time::OffsetDateTime::now_local()
-                .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
-                .date())
+            Err("Enter 'y' for yes or 'n' for no")
         }
     })
     .unwrap();
-    time_investment = input("Time taken to complete application (leave blank for unknown) (mm:ss):", |s| {
-        if !s.is_empty() {
-            if let Some((minutes_str, seconds_str)) = s.split_once(':') {
-                let minutes = match minutes_str.parse::<i32>() {
-                    Ok(i) => i,
-                    Err(e) => return Err(e.to_string()),
-                };
-                let seconds = match seconds_str.parse::<i32>() {
-                    Ok(i) => i,
-                    Err(e) => return Err(e.to_string()),
-                };
-                Ok(Some(Duration::seconds((minutes * 60 + seconds) as i64)))
+    human_response = input(
+        "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
+        |s| {
+            if s.starts_with(&['r', 'R']) {
+                Ok(HumanResponse::Rejection)
+            } else if s.starts_with(&['i', 'I']) {
+                Ok(HumanResponse::InterviewRequest)
+            } else if s.is_empty() {
+                Ok(HumanResponse::None)
             } else {
-                Err("No colon found".to_owned())
+                Err("Unknown response")
             }
-        } else {
-            Ok(None)
-        }
-    }).unwrap();
+        },
+    ).unwrap();
+    // Only prompt if human response is not null
+    if let HumanResponse::None = human_response {
+        human_response_date = None
+    } else {
+        human_response_date = Some(
+            input("Response date (leave blank for today) (mm/dd/yy):", |s| {
+                if !s.is_empty() {
+                    // If a date was given, try to parse it
+                    Date::parse(
+                        s,
+                        format_description!("[month repr:numerical]/[day]/[year repr:last_two]"),
+                    )
+                } else {
+                    // The string being empty is fine, just use today
+                    Ok(time::OffsetDateTime::now_local()
+                        .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+                        .date())
+                }
+            })
+            .unwrap(),
+        );
+    }
+    application_website = Some(
+        input(
+            "Application website (if applied using the company website): ",
+            wrap_ok,
+        )
+        .unwrap(),
+    );
+    notes = Some(input("Notes: ", wrap_ok).unwrap());
 
     // Construct the new application.
     let new_application = JobApplication {
@@ -131,7 +192,8 @@ fn create<C: Queryable>(conn: &mut C) {
         notes,
     };
 
-    insert_job_application(conn, &new_application);
+    println!("Job application: {new_application:?}");
+    // insert_job_application(conn, &new_application);
 }
 
 fn read<C: Queryable>(conn: &mut C, read_type: ReadType) {
