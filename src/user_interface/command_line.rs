@@ -42,7 +42,8 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
                 ShellOption::Update(update_type, id) => update(conn, update_type, id),
                 ShellOption::Delete(id) => delete(conn, id),
                 ShellOption::Exit => unreachable!(),
-            },
+            }
+            .map_or_else(|e| println!("{e}"), |_| ()),
         };
 
         print!("ats tracking> ");
@@ -52,7 +53,7 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
     Ok(())
 }
 
-fn help() {
+fn help() -> Result<(), Box<dyn std::error::Error>> {
     print!(
         "ATS Tracking System
 
@@ -65,9 +66,10 @@ Available commands:
   delete <id>
 "
     );
+    Ok(())
 }
 
-fn create<C: Queryable>(conn: &mut C) {
+fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> {
     // Declare the variables here to make sure I define all of them
     let source: String;
     let company: String;
@@ -99,14 +101,13 @@ fn create<C: Queryable>(conn: &mut C) {
     };
 
     // Initialize the fields
-    source = input("Source (job board, referral, etc):", wrap_ok).unwrap();
-    company = input("Company:", wrap_ok).unwrap();
-    job_title = input("Job Title:", wrap_ok).unwrap();
+    source = input("Source (job board, referral, etc):", wrap_ok)?;
+    company = input("Company:", wrap_ok)?;
+    job_title = input("Job Title:", wrap_ok)?;
     application_date = input(
         "Application date (leave blank for today) (mm/dd/yy):",
         parse_date,
-    )
-    .unwrap();
+    )?;
     time_investment = input(
         "Time taken to complete application (leave blank for unknown) (mm:ss):",
         |s| {
@@ -128,8 +129,7 @@ fn create<C: Queryable>(conn: &mut C) {
                 Ok(None)
             }
         },
-    )
-    .unwrap();
+    )?;
     automated_response = input("Was there an automated email after applying? [y/n]:", |s| {
         if s.starts_with(&['y', 'Y']) {
             Ok(true)
@@ -138,8 +138,7 @@ fn create<C: Queryable>(conn: &mut C) {
         } else {
             Err("Enter 'y' for yes or 'n' for no")
         }
-    })
-    .unwrap();
+    })?;
     human_response = input(
         "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
         |s| {
@@ -153,28 +152,22 @@ fn create<C: Queryable>(conn: &mut C) {
                 Err("Unknown response")
             }
         },
-    ).unwrap();
+    )?;
     // Only prompt if human response is not null
     if let HumanResponse::None = human_response {
         human_response_date = None
     } else {
-        human_response_date = Some(
-            input(
-                "Response date (leave blank for today) (mm/dd/yy):",
-                parse_date,
-            )
-            .unwrap(),
-        );
+        human_response_date = Some(input(
+            "Response date (leave blank for today) (mm/dd/yy):",
+            parse_date,
+        )?);
     }
-    application_website = Some(
-        input(
-            "Application website (if applied using the company website):",
-            wrap_ok,
-        )
-        .unwrap(),
-    )
+    application_website = Some(input(
+        "Application website (if applied using the company website):",
+        wrap_ok,
+    )?)
     .filter(|s| !s.is_empty());
-    notes = Some(input("Notes:", wrap_ok).unwrap()).filter(|s| !s.is_empty());
+    notes = Some(input("Notes:", wrap_ok)?).filter(|s| !s.is_empty());
 
     // Construct the new application.
     let new_application = JobApplication {
@@ -192,18 +185,23 @@ fn create<C: Queryable>(conn: &mut C) {
     };
 
     // println!("Job application: {new_application:?}");
-    insert_job_application(conn, &new_application);
+    insert_job_application(conn, &new_application)?;
+    Ok(())
 }
 
-fn read<C: Queryable>(conn: &mut C, read_type: ReadType) {
+fn read<C: Queryable>(conn: &mut C, read_type: ReadType) -> Result<(), Box<dyn std::error::Error>> {
     todo!();
 }
 
-fn update<C: Queryable>(conn: &mut C, update_type: UpdateType, id: i32) {
+fn update<C: Queryable>(
+    conn: &mut C,
+    update_type: UpdateType,
+    id: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
     todo!();
 }
 
-fn delete<C: Queryable>(conn: &mut C, id: i32) {
+fn delete<C: Queryable>(conn: &mut C, id: i32) -> Result<(), Box<dyn std::error::Error>> {
     todo!();
 }
 
