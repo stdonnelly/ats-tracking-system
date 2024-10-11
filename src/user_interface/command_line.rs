@@ -2,13 +2,14 @@ use std::{
     convert::Infallible,
     fmt::Display,
     io::{self, stdin, stdout, Write},
+    path::Path,
 };
 
 use mysql::prelude::Queryable;
 use time::{macros::format_description, Date, Duration};
 
 use crate::repository::job_application_repository::{
-    insert_job_application, HumanResponse, JobApplication,
+    get_job_applications, insert_job_application, HumanResponse, JobApplication,
 };
 
 use super::shell_option::{ReadType, ShellOption, UpdateType};
@@ -18,8 +19,12 @@ use super::shell_option::{ReadType, ShellOption, UpdateType};
 pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
     // Hold on to an stdin instance
     let stdin = stdin();
-    // Input line by line
+    // Temporary directory that is owned by this function
+    // This will be automatically deleted when this function exits
+    let temp_dir = tempfile::TempDir::new()?;
+    // Input buffer to read line by line without locking stdin between queries
     let mut input = String::new();
+    // Flag to tell the while loop when to stop
     let mut keep_looping = true;
 
     print!("ats tracking> ");
@@ -38,7 +43,7 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
             Ok(command) => match command {
                 ShellOption::Help => help(),
                 ShellOption::Create => create(conn),
-                ShellOption::Read(read_type) => read(conn, read_type),
+                ShellOption::Read(read_type) => read(conn, read_type, temp_dir.path()),
                 ShellOption::Update(update_type, id) => update(conn, update_type, id),
                 ShellOption::Delete(id) => delete(conn, id),
                 ShellOption::Exit => unreachable!(),
@@ -46,6 +51,7 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
             .map_or_else(|e| println!("{e}"), |_| ()),
         };
 
+        // Reprint the prompt
         print!("ats tracking> ");
         stdout().flush().unwrap();
     }
@@ -69,6 +75,7 @@ Available commands:
     Ok(())
 }
 
+/// Prompt a user for all parts of a job application and insert the new element
 fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> {
     // Declare the variables here to make sure I define all of them
     let source: String;
@@ -189,8 +196,86 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
     Ok(())
 }
 
-fn read<C: Queryable>(conn: &mut C, read_type: ReadType) -> Result<(), Box<dyn std::error::Error>> {
-    todo!();
+fn read<C: Queryable>(
+    conn: &mut C,
+    read_type: ReadType,
+    temp_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Read the job application(s), depending on read type
+    let applications: Vec<JobApplication> = match read_type {
+        ReadType::All => get_job_applications(conn)?,
+        ReadType::Pending => todo!(),
+        ReadType::Search(query) => todo!(),
+        ReadType::One(id) => todo!(),
+    };
+
+    match applications.len() {
+        0 => Err(Box::<dyn std::error::Error>::from(
+            "No job application found",
+        )),
+        1 => {
+            // This should never panic, we just verified there is exactly one job application
+            let job_application = applications.get(0).unwrap();
+            println!("One job application found:");
+            println!(
+                "ID: {}
+Source: {}
+Company: {}
+Job title: {}
+Application date: {:02}/{:02}/{}
+Time Taken to complete application: {}
+Was there an automated response after applying? {}
+Response from a human: {}
+Human response date: {}
+Response time (days): {}
+Application website: {}
+Notes: {}",
+                job_application.id,
+                job_application.source.replace("\"", "\"\""),
+                job_application.company.replace("\"", "\"\""),
+                job_application.job_title.replace("\"", "\"\""),
+                job_application.application_date.month() as u8,
+                job_application.application_date.day(),
+                job_application.application_date.year(),
+                job_application
+                    .time_investment
+                    .map_or("".to_string(), |t| format!(
+                        "{:02}:{:02}",
+                        t.whole_minutes(),
+                        t.whole_seconds() % 60
+                    )),
+                match job_application.automated_response {
+                    true => "Yes",
+                    false => "No",
+                },
+                job_application.human_response,
+                job_application
+                    .human_response_date
+                    .map_or("".to_string(), |d| format!(
+                        "{:02}/{:02}/{}",
+                        d.month() as u8,
+                        d.day(),
+                        d.year()
+                    )),
+                job_application
+                    .human_response_date
+                    .map_or("".to_owned(), |resp_date: Date| {
+                        let duration_between_dates = resp_date - job_application.application_date;
+                        duration_between_dates.whole_days().to_string()
+                    }),
+                job_application
+                    .application_website
+                    .as_deref()
+                    .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
+                job_application
+                    .notes
+                    .as_deref()
+                    .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
+            );
+            Ok(())
+        }
+        _ => print_table(applications, temp_dir),
+    }
 }
 
 fn update<C: Queryable>(
@@ -225,4 +310,61 @@ where
     }
 
     Err(io::Error::other("Reached EOF from stdin"))
+}
+
+/// Print the table, then show the results in the native spreadsheet application.
+/// This is crude, but an easy way to display while other features are being worked on.
+fn print_table(
+    job_applications: Vec<JobApplication>,
+    temp_dir: &Path,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Create temporary file
+    let mut file = tempfile::Builder::new()
+        // Suffix must be CSV for opener to recognize it
+        .suffix(".csv")
+        // Keep even when `file` goes out of scope.
+        // This relies on the destructor of `temp_dir` to clean files.
+        // The program should clean this as soon as the spreadsheet system is closed, but using a spreadsheet system is a hack anyway.
+        .keep(true)
+        // Create in the temporary directory
+        .tempfile_in(temp_dir)?;
+
+    // Write to that file
+    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Auto Response,Human Response,Date,Website,Notes")?;
+    for job_application in job_applications {
+        writeln!(&mut file, "\"{}\",\"{}\",\"{}\",\"{}\",\"{:02}/{:02}/{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"",
+            job_application.id,
+            job_application.source.replace("\"","\"\""),
+            job_application.company.replace("\"","\"\""),
+            job_application.job_title.replace("\"","\"\""),
+            job_application.application_date.month() as u8,
+            job_application.application_date.day(),
+            job_application.application_date.year(),
+            job_application.time_investment.map_or("".to_string(),
+                |t| format!("{:02}:{:02}", t.whole_minutes(), t.whole_seconds() % 60)
+            ),
+            match job_application.automated_response {
+                true => "Yes",
+                false => "No",
+            },
+            job_application.human_response,
+            job_application.human_response_date.map_or("".to_string(),
+                |d| format!("{:02}/{:02}/{}", d.month() as u8, d.day(), d.year())
+            ),
+            job_application.human_response_date
+                .map_or("".to_owned(), |resp_date: Date| {
+                    let duration_between_dates = resp_date - job_application.application_date;
+                    duration_between_dates.whole_days().to_string()
+                }),
+            job_application.application_website.map_or("".to_string(), |s| s.replace("\"","\"\"")),
+            job_application.notes.map_or("".to_string(), |s| s.replace("\"","\"\"")),
+        )?;
+    }
+    // Not sure if flushing is necessary, but it doesn't hurt
+    file.flush()?;
+
+    // Open whatever is used to open CSV
+    opener::open(file.path())?;
+
+    Ok(())
 }
