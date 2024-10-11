@@ -5,11 +5,13 @@ use std::{
     path::Path,
 };
 
-use mysql::prelude::Queryable;
+use mysql::{prelude::Queryable, PooledConn};
 use time::{macros::format_description, Date, Duration};
 
 use crate::repository::job_application_repository::{
-    get_job_applications, get_pending_job_applications, insert_job_application, HumanResponse, JobApplication
+    delete_job_application, get_job_application_by_id, get_job_applications,
+    get_pending_job_applications, insert_job_application, search_job_applications,
+    update_human_response, update_job_application, HumanResponse, JobApplication,
 };
 
 use super::shell_option::{ReadType, ShellOption, UpdateType};
@@ -91,21 +93,6 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
 
     // This will be used by multiple inputs
     let wrap_ok = |s: &str| Result::<_, Infallible>::Ok(s.to_owned());
-    // Multiple inputs parse date
-    let parse_date = |s: &str| {
-        if !s.is_empty() {
-            // If a date was given, try to parse it
-            Date::parse(
-                s,
-                format_description!("[month repr:numerical]/[day]/[year]"),
-            )
-        } else {
-            // The string being empty is fine, just use today
-            Ok(time::OffsetDateTime::now_local()
-                .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
-                .date())
-        }
-    };
 
     // Initialize the fields
     source = input("Source (job board, referral, etc):", wrap_ok)?;
@@ -205,8 +192,8 @@ fn read<C: Queryable>(
     let applications: Vec<JobApplication> = match read_type {
         ReadType::All => get_job_applications(conn)?,
         ReadType::Pending => get_pending_job_applications(conn)?,
-        ReadType::Search(_query) => todo!(),
-        ReadType::One(_id) => todo!(),
+        ReadType::Search(query) => search_job_applications(conn, &query)?,
+        ReadType::One(id) => get_job_application_by_id(conn, id)?.map_or(Vec::new(), |a| vec![a]),
     };
 
     match applications.len() {
@@ -284,17 +271,61 @@ fn update<C: Queryable>(
     id: i32,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Deal with warnings for now
-    let _ = conn;
-    let _ = update_type;
-    let _ = id;
-    todo!();
+    match update_type {
+        UpdateType::HumanResponse => {
+            let human_response: HumanResponse;
+            let human_response_date: Option<Date>;
+
+            // Get the parameters
+            human_response = input(
+                "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
+                |s| {
+                    if s.starts_with(&['r', 'R']) {
+                        Ok(HumanResponse::Rejection)
+                    } else if s.starts_with(&['i', 'I']) {
+                        Ok(HumanResponse::InterviewRequest)
+                    } else if s.is_empty() {
+                        Ok(HumanResponse::None)
+                    } else {
+                        Err("Unknown response")
+                    }
+                },
+            )?;
+            // Only prompt if human response is not null
+            if let HumanResponse::None = human_response {
+                human_response_date = None
+            } else {
+                human_response_date = Some(input(
+                    "Response date (leave blank for today) (mm/dd/yy):",
+                    parse_date,
+                )?);
+            }
+
+            update_human_response(conn, id, human_response, human_response_date)
+                // Box the error, if any
+                .map_err(Box::<dyn std::error::Error>::from)
+        }
+        UpdateType::Other => {
+            // Temporary: make rust stop complaining that update_job_application is unused
+            let _ = |c: &mut PooledConn, a| update_job_application(c, a);
+            todo!()
+        }
+    }
 }
 
 fn delete<C: Queryable>(conn: &mut C, id: i32) -> Result<(), Box<dyn std::error::Error>> {
-    // Deal with the warnings for now
-    let _ = conn;
-    let _ = id;
-    todo!();
+    // Confirm delete
+    if input(
+        "Are you sure you want to delete this job application? [y/N]:",
+        |s| Result::<bool, Infallible>::Ok(s.starts_with(&['y', 'Y'])), // Only do it if y, Y, or something that starts with y
+    )? {
+        delete_job_application(conn, id).map_err(Box::<dyn std::error::Error>::from)?;
+        println!("Successfully deleted job application {id}");
+    } else {
+        println!("Aborting delete");
+    }
+
+    Ok(())
 }
 
 /// Prints a given prompt and returns the input, parsed by `parse` to `T`
@@ -374,4 +405,22 @@ fn print_table(
     opener::open(file.path())?;
 
     Ok(())
+}
+
+/// Parse a date string into a date
+///
+/// Used for input()
+fn parse_date(s: &str) -> Result<Date, time::error::Parse> {
+    if !s.is_empty() {
+        // If a date was given, try to parse it
+        Date::parse(
+            s,
+            format_description!("[month repr:numerical]/[day]/[year]"),
+        )
+    } else {
+        // The string being empty is fine, just use today
+        Ok(time::OffsetDateTime::now_local()
+            .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+            .date())
+    }
 }
