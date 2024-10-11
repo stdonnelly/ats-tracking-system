@@ -16,16 +16,22 @@ use super::shell_option::{ReadType, ShellOption, UpdateType};
 /// The main loop that runs the prompt
 /// Will exit if there is an  
 pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
+    // Hold on to an stdin instance
     let stdin = stdin();
+    // Input line by line
+    let mut input = String::new();
+    let mut keep_looping = true;
 
     print!("ats tracking> ");
     stdout().flush().unwrap();
-    for line in stdin.lines() {
-        let input = line?;
+    while keep_looping {
+        // We can't use for line in stdin.lines() because that locks stdin while looping
+        input.clear();
+        stdin.read_line(&mut input)?;
 
-        match ShellOption::try_from(input.as_str()) {
+        match ShellOption::try_from(input.trim()) {
             // If we should exit, do that
-            Ok(ShellOption::Exit) => break,
+            Ok(ShellOption::Exit) => keep_looping = false,
             // If there is an error, print the error
             Err(s) => println!("{}", s),
             // For any other commands
@@ -76,27 +82,29 @@ fn create<C: Queryable>(conn: &mut C) {
 
     // This will be used by multiple inputs
     let wrap_ok = |s: &str| Result::<_, Infallible>::Ok(s.to_owned());
+    // Multiple inputs parse date
+    let parse_date = |s: &str| {
+        if !s.is_empty() {
+            // If a date was given, try to parse it
+            Date::parse(
+                s,
+                format_description!("[month repr:numerical]/[day]/[year]"),
+            )
+        } else {
+            // The string being empty is fine, just use today
+            Ok(time::OffsetDateTime::now_local()
+                .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+                .date())
+        }
+    };
 
     // Initialize the fields
-    source = input("Source (job board, referral, etc): ", wrap_ok).unwrap();
-    company = input("Company: ", wrap_ok).unwrap();
-    job_title = input("Job Title: ", wrap_ok).unwrap();
+    source = input("Source (job board, referral, etc):", wrap_ok).unwrap();
+    company = input("Company:", wrap_ok).unwrap();
+    job_title = input("Job Title:", wrap_ok).unwrap();
     application_date = input(
         "Application date (leave blank for today) (mm/dd/yy):",
-        |s| {
-            if !s.is_empty() {
-                // If a date was given, try to parse it
-                Date::parse(
-                    s,
-                    format_description!("[month repr:numerical]/[day]/[year repr:last_two]"),
-                )
-            } else {
-                // The string being empty is fine, just use today
-                Ok(time::OffsetDateTime::now_local()
-                    .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
-                    .date())
-            }
-        },
+        parse_date,
     )
     .unwrap();
     time_investment = input(
@@ -151,31 +159,22 @@ fn create<C: Queryable>(conn: &mut C) {
         human_response_date = None
     } else {
         human_response_date = Some(
-            input("Response date (leave blank for today) (mm/dd/yy):", |s| {
-                if !s.is_empty() {
-                    // If a date was given, try to parse it
-                    Date::parse(
-                        s,
-                        format_description!("[month repr:numerical]/[day]/[year repr:last_two]"),
-                    )
-                } else {
-                    // The string being empty is fine, just use today
-                    Ok(time::OffsetDateTime::now_local()
-                        .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
-                        .date())
-                }
-            })
+            input(
+                "Response date (leave blank for today) (mm/dd/yy):",
+                parse_date,
+            )
             .unwrap(),
         );
     }
     application_website = Some(
         input(
-            "Application website (if applied using the company website): ",
+            "Application website (if applied using the company website):",
             wrap_ok,
         )
         .unwrap(),
-    );
-    notes = Some(input("Notes: ", wrap_ok).unwrap());
+    )
+    .filter(|s| !s.is_empty());
+    notes = Some(input("Notes:", wrap_ok).unwrap()).filter(|s| !s.is_empty());
 
     // Construct the new application.
     let new_application = JobApplication {
@@ -192,8 +191,8 @@ fn create<C: Queryable>(conn: &mut C) {
         notes,
     };
 
-    println!("Job application: {new_application:?}");
-    // insert_job_application(conn, &new_application);
+    // println!("Job application: {new_application:?}");
+    insert_job_application(conn, &new_application);
 }
 
 fn read<C: Queryable>(conn: &mut C, read_type: ReadType) {
@@ -223,6 +222,8 @@ where
             Ok(o) => return Ok(o),
             Err(e) => println!("Invalid input: {e}"),
         }
+        print!("{prompt} ");
+        std::io::stdout().flush().unwrap();
     }
 
     Err(io::Error::other("Reached EOF from stdin"))
