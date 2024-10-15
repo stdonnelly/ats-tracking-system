@@ -1,6 +1,9 @@
-use std::fmt::{Debug, Display};
+use std::{
+    collections::HashMap,
+    fmt::{Debug, Display},
+};
 
-use mysql::{params, prelude::Queryable};
+use mysql::{params, prelude::Queryable, Params, Value};
 use time::{Date, Duration};
 
 /// A row in the job application table
@@ -19,6 +22,24 @@ pub struct JobApplication {
     pub notes: Option<String>,
 }
 
+impl Into<Params> for &JobApplication {
+    fn into(self) -> Params {
+        params! {
+            "source" => &self.source,
+            "company" => &self.company,
+            "job_title" => &self.job_title,
+            "application_date" => &self.application_date,
+            "time_investment" => &self.time_investment,
+            "automated_response" => &self.automated_response,
+            "human_response" => &self.human_response,
+            "human_response_date" => &self.human_response_date,
+            "application_website" => &self.application_website,
+            "notes" => &self.notes,
+        }
+    }
+}
+
+/// Enum to hold possible human responses
 #[derive(Debug, Clone, Copy)]
 pub enum HumanResponse {
     None,
@@ -56,6 +77,77 @@ impl From<HumanResponse> for Option<&str> {
             HumanResponse::Rejection => Some("Rejection"),
             HumanResponse::InterviewRequest => Some("Interview Request"),
         }
+    }
+}
+
+impl Into<Value> for HumanResponse {
+    fn into(self) -> Value {
+        Value::from(Option::<&str>::from((self).to_owned()))
+    }
+}
+
+/// Field in a JobApplication to allow the creation of partial job applications
+pub enum JobApplicationField {
+    Id(i32),
+    Source(String),
+    Company(String),
+    JobTitle(String),
+    ApplicationDate(Date),
+    TimeInvestment(Option<Duration>),
+    AutomatedResponse(bool),
+    HumanResponse(HumanResponse),
+    HumanResponseDate(Option<Date>),
+    ApplicationWebsite(Option<String>),
+    Notes(Option<String>),
+}
+
+impl JobApplicationField {
+    fn name(&self) -> String {
+        match self {
+            JobApplicationField::Id(_) => "id",
+            JobApplicationField::Source(_) => "source",
+            JobApplicationField::Company(_) => "company",
+            JobApplicationField::JobTitle(_) => "job_title",
+            JobApplicationField::ApplicationDate(_) => "application_date",
+            JobApplicationField::TimeInvestment(_) => "time_investment",
+            JobApplicationField::AutomatedResponse(_) => "automated_response",
+            JobApplicationField::HumanResponse(_) => "human_response",
+            JobApplicationField::HumanResponseDate(_) => "human_response_date",
+            JobApplicationField::ApplicationWebsite(_) => "application_website",
+            JobApplicationField::Notes(_) => "notes",
+        }
+        .to_owned()
+    }
+}
+
+impl Into<Value> for JobApplicationField {
+    fn into(self) -> Value {
+        match self {
+            JobApplicationField::Id(o) => Into::<Value>::into(o),
+            JobApplicationField::Source(o) => Into::<Value>::into(o),
+            JobApplicationField::Company(o) => Into::<Value>::into(o),
+            JobApplicationField::JobTitle(o) => Into::<Value>::into(o),
+            JobApplicationField::ApplicationDate(o) => Into::<Value>::into(o),
+            JobApplicationField::TimeInvestment(o) => Into::<Value>::into(o),
+            JobApplicationField::AutomatedResponse(o) => Into::<Value>::into(o),
+            JobApplicationField::HumanResponse(o) => Into::<Value>::into(o),
+            JobApplicationField::HumanResponseDate(o) => Into::<Value>::into(o),
+            JobApplicationField::ApplicationWebsite(o) => Into::<Value>::into(o),
+            JobApplicationField::Notes(o) => Into::<Value>::into(o),
+        }
+    }
+}
+
+/// Newtype to allow impl Into<Params>
+pub struct PartialJobApplication(Vec<JobApplicationField>);
+
+impl Into<Params> for PartialJobApplication {
+    fn into(self) -> Params {
+        let mut params_map: HashMap<Vec<u8>, Value> = HashMap::with_capacity(self.0.len());
+        for field in self.0 {
+            params_map.insert(field.name().as_bytes().to_vec(), Into::<Value>::into(field));
+        }
+        Params::Named(params_map)
     }
 }
 
@@ -123,18 +215,7 @@ pub fn insert_job_application<C: Queryable>(
         "INSERT INTO job_applications (source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes)
         VALUES (:source, :company, :job_title, :application_date, :time_investment, :automated_response, :human_response, :human_response_date, :application_website, :notes)
         RETURNING id",
-        params! {
-            "source" => &application.source,
-            "company" => &application.company,
-            "job_title" => &application.job_title,
-            "application_date" => &application.application_date,
-            "time_investment" => &application.time_investment,
-            "automated_response" => &application.automated_response,
-            "human_response" => Option::<&str>::from((&application.human_response).to_owned()),
-            "human_response_date" => &application.human_response_date,
-            "application_website" => &application.application_website,
-            "notes" => &application.notes,
-        }
+        application
     )?;
 
     Ok(JobApplication {
@@ -172,11 +253,35 @@ pub fn update_human_response<C: Queryable>(
 /// If there is no application with that id, nothing will be changed in the database and an error will be returned
 pub fn update_job_application<C: Queryable>(
     conn: &mut C,
-    application: JobApplication,
+    partial_application: PartialJobApplication,
 ) -> Result<JobApplication, Box<dyn std::error::Error>> {
-    let _ = conn;
-    let _ = application;
-    todo!()
+    let mut query_builder = "UPDATE job_applications SET ".to_owned();
+
+    // Loop over all field names
+    // Flag for if this is the first variable
+    let mut is_first = true;
+    for field in partial_application.0.iter() {
+        if let JobApplicationField::Id(_) = field {
+            // NO-OP: Id is special because we are using it in the WHERE clause instead of SET
+        } else if is_first {
+            // The first non-id value is special because of where the SET and commas are
+            query_builder += &format!("SET {0} = :{0}", field.name());
+            is_first = false
+        } else {
+            // Normal placement
+            query_builder += &format!(",\n{0} = :{0}", field.name());
+        }
+    }
+
+    // End with the WHERE clause
+    query_builder += "\nWHERE id = :id
+    RETURNING id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes";
+
+    conn.exec_first(query_builder, partial_application)?
+        .map(map_row)
+        .ok_or(Box::<dyn std::error::Error>::from(
+            "No job application found",
+        ))
 }
 
 /// Delete a job application from the database
