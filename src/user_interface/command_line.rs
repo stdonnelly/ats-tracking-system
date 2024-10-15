@@ -130,7 +130,7 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
     company = input("Company:", wrap_ok)?;
     job_title = input("Job Title:", wrap_ok)?;
     application_date = input(
-        "Application date (leave blank for today) (mm/dd/yy):",
+        "Application date (leave blank for today) (mm/dd/yyyy):",
         parse_date,
     )?;
     time_investment = input(
@@ -183,7 +183,7 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
         human_response_date = None
     } else {
         human_response_date = Some(input(
-            "Response date (leave blank for today) (mm/dd/yy):",
+            "Response date (leave blank for today) (mm/dd/yyyy):",
             parse_date,
         )?);
     }
@@ -333,7 +333,7 @@ fn update_human_response_command<C: Queryable>(
         human_response_date = None
     } else {
         human_response_date = Some(input(
-            "Response date (leave blank for today) (mm/dd/yy):",
+            "Response date (leave blank for today) (mm/dd/yyyy):",
             parse_date,
         )?);
     }
@@ -371,13 +371,13 @@ fn update_other_command<C: Queryable>(
     input_optional!(partial_application, "Job Title", wrap_ok, JobTitle);
     input_optional!(
         partial_application,
-        "Application date (leave blank for today) (mm/dd/yy)",
+        "Application date (mm/dd/yyyy)",
         parse_date_optional,
         ApplicationDate
     );
     input_optional!(
         partial_application,
-        "Time taken to complete application (leave blank for unknown) (mm:ss)",
+        "Time taken to complete application (enter 'remove' to remove) (mm:ss)",
         |s: &str| {
             match s {
                 // If empty, just ignore this
@@ -443,7 +443,7 @@ fn update_other_command<C: Queryable>(
     // Only prompt if human response is not null
     input_optional!(
         partial_application,
-        "Response date (mm/dd/yyyy)",
+        "Response date (enter 'remove' to remove) (mm/dd/yyyy)",
         |s: &str| {
             if s == "remove" {
                 // If the input is "remove", remove it by adding HumanResponseDate(None) to the vector
@@ -459,7 +459,7 @@ fn update_other_command<C: Queryable>(
     );
     input_optional!(
         partial_application,
-        "Application website (if applied using the company website)",
+        "Application website (if applied using the company website) (enter 'remove' to remove)",
         |s: &str| {
             if s == "remove" {
                 Ok(Some(None))
@@ -474,7 +474,7 @@ fn update_other_command<C: Queryable>(
     );
     input_optional!(
         partial_application,
-        "Application website (if applied using the company website)",
+        "Notes",
         |s: &str| {
             if s == "remove" {
                 Ok(Some(None))
