@@ -9,7 +9,9 @@ use mysql::{prelude::Queryable, PooledConn};
 use time::{macros::format_description, Date, Duration};
 
 use crate::repository::{
-    job_application_model::{HumanResponse, JobApplication},
+    job_application_model::{
+        HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
+    },
     job_application_repository::{
         delete_job_application, get_job_application_by_id, get_job_applications,
         get_pending_job_applications, insert_job_application, search_job_applications,
@@ -18,6 +20,32 @@ use crate::repository::{
 };
 
 use super::shell_option::{ReadType, ShellOption, UpdateType};
+
+macro_rules! input_optional {
+    ($partial_application:ident, $prompt:literal, $parser:ident, $field_variant:tt) => {
+        input::<Option<_>, _, _>(
+            concat!($prompt, "\nLeave blank to leave unchanged: "),
+            $parser,
+        )?
+        .map(|o| {
+            $partial_application
+                .0
+                .push(JobApplicationField::$field_variant(o))
+        });
+    };
+    // Not sure if it's possible to just use the same template for both, since it's the same
+    ($partial_application:ident, $prompt:literal, $parser:expr, $field_variant:tt) => {
+        input::<Option<_>, _, _>(
+            concat!($prompt, "\nLeave blank to leave unchanged: "),
+            $parser,
+        )?
+        .map(|o| {
+            $partial_application
+                .0
+                .push(JobApplicationField::$field_variant(o))
+        });
+    };
+}
 
 /// The main loop that runs the prompt
 /// Will exit if there is an  
@@ -205,10 +233,17 @@ fn read<C: Queryable>(
         )),
         1 => {
             // This should never panic, we just verified there is exactly one job application
-            let job_application = applications.get(0).unwrap();
-            println!("One job application found:");
-            println!(
-                "ID: {}
+            print_job_application_to_terminal(applications.get(0).unwrap());
+            Ok(())
+        }
+        _ => print_table(applications, temp_dir),
+    }
+}
+
+fn print_job_application_to_terminal(ja: &JobApplication) {
+    println!("One job application found:");
+    println!(
+        "ID: {}
 Source: {}
 Company: {}
 Job title: {}
@@ -220,54 +255,44 @@ Human response date: {}
 Response time (days): {}
 Application website: {}
 Notes: {}",
-                job_application.id,
-                job_application.source.replace("\"", "\"\""),
-                job_application.company.replace("\"", "\"\""),
-                job_application.job_title.replace("\"", "\"\""),
-                job_application.application_date.month() as u8,
-                job_application.application_date.day(),
-                job_application.application_date.year(),
-                job_application
-                    .time_investment
-                    .map_or("".to_string(), |t| format!(
-                        "{:02}:{:02}",
-                        t.whole_minutes(),
-                        t.whole_seconds() % 60
-                    )),
-                match job_application.automated_response {
-                    true => "Yes",
-                    false => "No",
-                },
-                job_application.human_response,
-                job_application
-                    .human_response_date
-                    .map_or("".to_string(), |d| format!(
-                        "{:02}/{:02}/{}",
-                        d.month() as u8,
-                        d.day(),
-                        d.year()
-                    )),
-                job_application
-                    .human_response_date
-                    .map_or("".to_owned(), |resp_date: Date| {
-                        let duration_between_dates = resp_date - job_application.application_date;
-                        duration_between_dates.whole_days().to_string()
-                    }),
-                job_application
-                    .application_website
-                    .as_deref()
-                    .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
-                job_application
-                    .notes
-                    .as_deref()
-                    .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
-            );
-            Ok(())
-        }
-        _ => print_table(applications, temp_dir),
-    }
+        ja.id,
+        ja.source.replace("\"", "\"\""),
+        ja.company.replace("\"", "\"\""),
+        ja.job_title.replace("\"", "\"\""),
+        ja.application_date.month() as u8,
+        ja.application_date.day(),
+        ja.application_date.year(),
+        ja.time_investment.map_or("".to_string(), |t| format!(
+            "{:02}:{:02}",
+            t.whole_minutes(),
+            t.whole_seconds() % 60
+        )),
+        match ja.automated_response {
+            true => "Yes",
+            false => "No",
+        },
+        ja.human_response,
+        ja.human_response_date.map_or("".to_string(), |d| format!(
+            "{:02}/{:02}/{}",
+            d.month() as u8,
+            d.day(),
+            d.year()
+        )),
+        ja.human_response_date
+            .map_or("".to_owned(), |resp_date: Date| {
+                let duration_between_dates = resp_date - ja.application_date;
+                duration_between_dates.whole_days().to_string()
+            }),
+        ja.application_website
+            .as_deref()
+            .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
+        ja.notes
+            .as_deref()
+            .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
+    );
 }
 
+/// Determine the update type and call the appropriate function
 fn update<C: Queryable>(
     conn: &mut C,
     update_type: UpdateType,
@@ -275,44 +300,205 @@ fn update<C: Queryable>(
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Deal with warnings for now
     match update_type {
-        UpdateType::HumanResponse => {
-            let human_response: HumanResponse;
-            let human_response_date: Option<Date>;
+        UpdateType::HumanResponse => update_human_response_command(conn, id),
+        UpdateType::Other => update_other_command(conn, id),
+    }
+}
 
-            // Get the parameters
-            human_response = input(
-                "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
-                |s| {
-                    if s.starts_with(&['r', 'R']) {
-                        Ok(HumanResponse::Rejection)
-                    } else if s.starts_with(&['i', 'I']) {
-                        Ok(HumanResponse::InterviewRequest)
-                    } else if s.is_empty() {
-                        Ok(HumanResponse::None)
-                    } else {
-                        Err("Unknown response")
-                    }
-                },
-            )?;
-            // Only prompt if human response is not null
-            if let HumanResponse::None = human_response {
-                human_response_date = None
+/// Ask the user for the human response and update it
+fn update_human_response_command<C: Queryable>(
+    conn: &mut C,
+    id: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let human_response: HumanResponse;
+    let human_response_date: Option<Date>;
+
+    // Get the parameters
+    human_response = input(
+        "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
+        |s| {
+            if s.starts_with(&['r', 'R']) {
+                Ok(HumanResponse::Rejection)
+            } else if s.starts_with(&['i', 'I']) {
+                Ok(HumanResponse::InterviewRequest)
+            } else if s.is_empty() {
+                Ok(HumanResponse::None)
             } else {
-                human_response_date = Some(input(
-                    "Response date (leave blank for today) (mm/dd/yy):",
-                    parse_date,
-                )?);
+                Err("Unknown response")
             }
+        },
+    )?;
+    // Only prompt if human response is not null
+    if let HumanResponse::None = human_response {
+        human_response_date = None
+    } else {
+        human_response_date = Some(input(
+            "Response date (leave blank for today) (mm/dd/yy):",
+            parse_date,
+        )?);
+    }
 
-            update_human_response(conn, id, human_response, human_response_date)
-                // Box the error, if any
-                .map_err(Box::<dyn std::error::Error>::from)
-        }
-        UpdateType::Other => {
-            // Temporary: make rust stop complaining that update_job_application is unused
-            let _ = |c: &mut PooledConn, a| update_job_application(c, a);
-            todo!()
-        }
+    update_human_response(conn, id, human_response, human_response_date)
+        // Box the error, if any
+        .map_err(Box::<dyn std::error::Error>::from)
+}
+
+/// Ask the user what to update and update it
+fn update_other_command<C: Queryable>(
+    conn: &mut C,
+    id: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
+    let _ = |c: &mut PooledConn, a| update_job_application(c, a);
+
+    // This will be used by multiple inputs
+    let wrap_ok = |s: &str| {
+        Result::<_, Infallible>::Ok(if s.is_empty() {
+            None
+        } else {
+            Some(s.to_owned())
+        })
+    };
+
+    // Initialize the fields
+    let mut partial_application = PartialJobApplication(Vec::new());
+    input_optional!(
+        partial_application,
+        "Source (job board, referral, etc)",
+        wrap_ok,
+        Source
+    );
+    input_optional!(partial_application, "Company", wrap_ok, Company);
+    input_optional!(partial_application, "Job Title", wrap_ok, JobTitle);
+    input_optional!(
+        partial_application,
+        "Application date (leave blank for today) (mm/dd/yy)",
+        parse_date_optional,
+        ApplicationDate
+    );
+    input_optional!(
+        partial_application,
+        "Time taken to complete application (leave blank for unknown) (mm:ss)",
+        |s: &str| {
+            match s {
+                // If empty, just ignore this
+                s if s.is_empty() => Ok(None),
+                // If this is the word "remove", Some(None) will result in the element TimeInvestment(None), which will make the entry NULL
+                "remove" => Ok(Some(None)),
+                // For anything else, parse the time
+                s => {
+                    if let Some((minutes_str, seconds_str)) = s.split_once(':') {
+                        let minutes = match minutes_str.parse::<i32>() {
+                            Ok(i) => i,
+                            Err(e) => return Err(e.to_string()),
+                        };
+                        let seconds = match seconds_str.parse::<i32>() {
+                            Ok(i) => i,
+                            Err(e) => return Err(e.to_string()),
+                        };
+                        Ok(Some(Some(Duration::seconds(
+                            (minutes * 60 + seconds) as i64,
+                        ))))
+                    } else {
+                        Err("No colon found".to_owned())
+                    }
+                }
+            }
+        },
+        TimeInvestment
+    );
+    input_optional!(
+        partial_application,
+        "Was there an automated email after applying? [y/n]",
+        |s| {
+            if s.is_empty() {
+                Ok(None)
+            } else if s.starts_with(&['y', 'Y']) {
+                Ok(Some(true))
+            } else if s.starts_with(&['n', 'N']) {
+                Ok(Some(false))
+            } else {
+                Err("Enter 'y' for yes or 'n' for no")
+            }
+        },
+        AutomatedResponse
+    );
+    input_optional!(
+        partial_application,
+        "Response sent by a human later\nEnter r for rejection, i for interview request, or 'remove' for none",
+        |s| {
+            if s == "remove" {
+                Ok(Some(HumanResponse::None))
+            } else if s.starts_with(&['r', 'R']) {
+                Ok(Some(HumanResponse::Rejection))
+            } else if s.starts_with(&['i', 'I']) {
+                Ok(Some(HumanResponse::InterviewRequest))
+            } else if s.is_empty() {
+                Ok(None)
+            } else {
+                Err("Unknown response")
+            }
+        },
+        HumanResponse
+        );
+    // Only prompt if human response is not null
+    input_optional!(
+        partial_application,
+        "Response date (mm/dd/yyyy)",
+        |s: &str| {
+            if s == "remove" {
+                // If the input is "remove", remove it by adding HumanResponseDate(None) to the vector
+                Ok(Some(None))
+            } else {
+                // If the result is Ok, check if it's blank
+                // If blank, just return Ok(None) so the item does not get added to the partial application record (i.e. Ok(None)->Ok(None))
+                // If successful parse, return Ok(Some(*parsed*))
+                parse_date_optional(s).map(|o| o.map(Option::from))
+            }
+        },
+        HumanResponseDate
+    );
+    input_optional!(
+        partial_application,
+        "Application website (if applied using the company website)",
+        |s: &str| {
+            if s == "remove" {
+                Ok(Some(None))
+            } else {
+                // If the result is Ok, check if it's blank
+                // If blank, just return Ok(None) so the item does not get added to the partial application record (i.e. Ok(None)->Ok(None))
+                // If successful parse, return Ok(Some(*parsed*))
+                wrap_ok(s).map(|o| o.map(Option::from))
+            }
+        },
+        ApplicationWebsite
+    );
+    input_optional!(
+        partial_application,
+        "Application website (if applied using the company website)",
+        |s: &str| {
+            if s == "remove" {
+                Ok(Some(None))
+            } else {
+                // If the result is Ok, check if it's blank
+                // If blank, just return Ok(None) so the item does not get added to the partial application record (i.e. Ok(None)->Ok(None))
+                // If successful parse, return Ok(Some(*parsed*))
+                wrap_ok(s).map(|o| o.map(Option::from))
+            }
+        },
+        Notes
+    );
+
+    // Make sure at least one change was made
+    if partial_application.0.is_empty() {
+        Err(Box::<dyn std::error::Error>::from("No changes made"))
+    } else {
+        // Add the ID of the job application to modify
+        partial_application.0.push(JobApplicationField::Id(id));
+        // For confirmation, print the returned job application
+        let new_job_application = update_job_application(conn, partial_application)?;
+        print_job_application_to_terminal(&new_job_application);
+
+        Ok(())
     }
 }
 
@@ -425,5 +611,21 @@ fn parse_date(s: &str) -> Result<Date, time::error::Parse> {
         Ok(time::OffsetDateTime::now_local()
             .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
             .date())
+    }
+}
+
+/// Parse a string into an optional date
+///
+/// If the string is "", return Ok(None), otherwise try to parse the string and return Ok(Some(*parsed*))
+fn parse_date_optional(s: &str) -> Result<Option<Date>, time::error::Parse> {
+    if !s.is_empty() {
+        // If a date was given, try to parse it
+        Ok(Some(Date::parse(
+            s,
+            format_description!("[month repr:numerical]/[day]/[year]"),
+        )?))
+    } else {
+        // The string being empty is fine, just use today
+        Ok(None)
     }
 }
