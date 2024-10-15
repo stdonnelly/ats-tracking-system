@@ -8,10 +8,13 @@ use std::{
 use mysql::{prelude::Queryable, PooledConn};
 use time::{macros::format_description, Date, Duration};
 
-use crate::repository::job_application_repository::{
-    delete_job_application, get_job_application_by_id, get_job_applications,
-    get_pending_job_applications, insert_job_application, search_job_applications,
-    update_human_response, update_job_application, HumanResponse, JobApplication,
+use crate::repository::{
+    job_application_model::{HumanResponse, JobApplication},
+    job_application_repository::{
+        delete_job_application, get_job_application_by_id, get_job_applications,
+        get_pending_job_applications, insert_job_application, search_job_applications,
+        update_human_response, update_job_application,
+    },
 };
 
 use super::shell_option::{ReadType, ShellOption, UpdateType};

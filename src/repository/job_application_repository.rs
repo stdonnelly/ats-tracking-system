@@ -1,63 +1,9 @@
-use std::fmt::{Debug, Display};
-
 use mysql::{params, prelude::Queryable};
 use time::{Date, Duration};
 
-/// A row in the job application table
-#[derive(Debug, Clone)]
-pub struct JobApplication {
-    pub id: i32,
-    pub source: String,
-    pub company: String,
-    pub job_title: String,
-    pub application_date: Date,
-    pub time_investment: Option<Duration>,
-    pub automated_response: bool,
-    pub human_response: HumanResponse,
-    pub human_response_date: Option<Date>,
-    pub application_website: Option<String>,
-    pub notes: Option<String>,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub enum HumanResponse {
-    None,
-    Rejection,
-    InterviewRequest,
-}
-
-impl Display for HumanResponse {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(match self {
-            Self::None => "No response yet",
-            Self::Rejection => "Rejection",
-            Self::InterviewRequest => "Interview Request",
-        })
-    }
-}
-
-impl TryFrom<&str> for HumanResponse {
-    type Error = ();
-
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        match value.trim().to_lowercase().as_str() {
-            "interview request" => Ok(HumanResponse::InterviewRequest),
-            "rejection" => Ok(HumanResponse::Rejection),
-            "" => Ok(HumanResponse::None),
-            _ => Err(()),
-        }
-    }
-}
-
-impl From<HumanResponse> for Option<&str> {
-    fn from(value: HumanResponse) -> Self {
-        match value {
-            HumanResponse::None => None,
-            HumanResponse::Rejection => Some("Rejection"),
-            HumanResponse::InterviewRequest => Some("Interview Request"),
-        }
-    }
-}
+use super::job_application_model::{
+    HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
+};
 
 /// Get all job applications
 pub fn get_job_applications<C: Queryable>(
@@ -123,18 +69,7 @@ pub fn insert_job_application<C: Queryable>(
         "INSERT INTO job_applications (source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes)
         VALUES (:source, :company, :job_title, :application_date, :time_investment, :automated_response, :human_response, :human_response_date, :application_website, :notes)
         RETURNING id",
-        params! {
-            "source" => &application.source,
-            "company" => &application.company,
-            "job_title" => &application.job_title,
-            "application_date" => &application.application_date,
-            "time_investment" => &application.time_investment,
-            "automated_response" => &application.automated_response,
-            "human_response" => Option::<&str>::from((&application.human_response).to_owned()),
-            "human_response_date" => &application.human_response_date,
-            "application_website" => &application.application_website,
-            "notes" => &application.notes,
-        }
+        application
     )?;
 
     Ok(JobApplication {
@@ -172,11 +107,35 @@ pub fn update_human_response<C: Queryable>(
 /// If there is no application with that id, nothing will be changed in the database and an error will be returned
 pub fn update_job_application<C: Queryable>(
     conn: &mut C,
-    application: JobApplication,
+    partial_application: PartialJobApplication,
 ) -> Result<JobApplication, Box<dyn std::error::Error>> {
-    let _ = conn;
-    let _ = application;
-    todo!()
+    let mut query_builder = "UPDATE job_applications SET ".to_owned();
+
+    // Loop over all field names
+    // Flag for if this is the first variable
+    let mut is_first = true;
+    for field in partial_application.0.iter() {
+        if let JobApplicationField::Id(_) = field {
+            // NO-OP: Id is special because we are using it in the WHERE clause instead of SET
+        } else if is_first {
+            // The first non-id value is special because of where the SET and commas are
+            query_builder += &format!("SET {0} = :{0}", field.name());
+            is_first = false
+        } else {
+            // Normal placement
+            query_builder += &format!(",\n{0} = :{0}", field.name());
+        }
+    }
+
+    // End with the WHERE clause
+    query_builder += "\nWHERE id = :id
+    RETURNING id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes";
+
+    conn.exec_first(query_builder, partial_application)?
+        .map(map_row)
+        .ok_or(Box::<dyn std::error::Error>::from(
+            "No job application found",
+        ))
 }
 
 /// Delete a job application from the database
