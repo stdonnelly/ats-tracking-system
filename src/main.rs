@@ -2,7 +2,7 @@ use std::{env, io::Write, path::Path};
 
 use dotenv::dotenv;
 use mysql::{OptsBuilder, Pool, PooledConn};
-use repository::job_application_repository::{get_job_applications, JobApplication};
+use repository::{job_application_model::JobApplication, job_application_repository::get_job_applications};
 
 mod repository;
 
