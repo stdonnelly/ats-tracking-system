@@ -108,8 +108,8 @@ pub fn update_human_response<C: Queryable>(
 pub fn update_job_application<C: Queryable>(
     conn: &mut C,
     partial_application: PartialJobApplication,
-) -> Result<JobApplication, Box<dyn std::error::Error>> {
-    let mut query_builder = "UPDATE job_applications SET ".to_owned();
+) -> Result<(), Box<dyn std::error::Error>> {
+    let mut query_builder = "UPDATE job_applications".to_owned();
 
     // Loop over all field names
     // Flag for if this is the first variable
@@ -119,7 +119,7 @@ pub fn update_job_application<C: Queryable>(
             // NO-OP: Id is special because we are using it in the WHERE clause instead of SET
         } else if is_first {
             // The first non-id value is special because of where the SET and commas are
-            query_builder += &format!("SET {0} = :{0}", field.name());
+            query_builder += &format!(" SET {0} = :{0}", field.name());
             is_first = false
         } else {
             // Normal placement
@@ -128,14 +128,10 @@ pub fn update_job_application<C: Queryable>(
     }
 
     // End with the WHERE clause
-    query_builder += "\nWHERE id = :id
-    RETURNING id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes";
+    query_builder += "\nWHERE id = :id";
+    // RETURNING id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes";
 
-    conn.exec_first(query_builder, partial_application)?
-        .map(map_row)
-        .ok_or(Box::<dyn std::error::Error>::from(
-            "No job application found",
-        ))
+    conn.exec_drop(query_builder, partial_application).map_err(Box::<dyn std::error::Error>::from)
 }
 
 /// Delete a job application from the database
