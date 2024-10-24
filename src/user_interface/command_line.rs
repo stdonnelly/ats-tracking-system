@@ -60,9 +60,9 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
     // Flag to tell the while loop when to stop
     let mut keep_looping = true;
 
-    print!("ats tracking> ");
-    stdout().flush().unwrap();
     while keep_looping {
+        print!("ats tracking> ");
+        stdout().flush().unwrap();
         // We can't use for line in stdin.lines() because that locks stdin while looping
         input.clear();
         stdin.read_line(&mut input)?;
@@ -83,10 +83,6 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
             }
             .map_or_else(|e| println!("{e}"), |_| ()),
         };
-
-        // Reprint the prompt
-        print!("ats tracking> ");
-        stdout().flush().unwrap();
     }
 
     Ok(())
