@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use mysql::{prelude::Queryable, PooledConn};
+use mysql::prelude::Queryable;
 use time::{macros::format_description, Date, Duration};
 
 use crate::repository::{
@@ -348,8 +348,6 @@ fn update_other_command<C: Queryable>(
     conn: &mut C,
     id: i32,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let _ = |c: &mut PooledConn, a| update_job_application(c, a);
-
     // This will be used by multiple inputs
     let wrap_ok = |s: &str| {
         Result::<_, Infallible>::Ok(if s.is_empty() {
@@ -495,8 +493,8 @@ fn update_other_command<C: Queryable>(
         // Add the ID of the job application to modify
         partial_application.0.push(JobApplicationField::Id(id));
         // For confirmation, print the returned job application
-        let new_job_application = update_job_application(conn, partial_application)?;
-        print_job_application_to_terminal(&new_job_application);
+        update_job_application(conn, partial_application)?;
+        // print_job_application_to_terminal(&new_job_application);
 
         Ok(())
     }
