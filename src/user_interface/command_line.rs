@@ -528,7 +528,13 @@ where
     print!("{prompt} ");
     std::io::stdout().flush().unwrap();
     for line in stdin().lines() {
-        match parse((line?).trim()) {
+        // For some reason Rust forces me to create this intermediate variable line_string
+        let line_string = line?;
+        let trimmed = line_string.trim();
+        if trimmed == "abort" {
+            return Err(io::Error::other("Operation aborted"));
+        }
+        match parse(trimmed) {
             Ok(o) => return Ok(o),
             Err(e) => println!("Invalid input: {e}"),
         }
