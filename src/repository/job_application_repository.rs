@@ -142,9 +142,7 @@ pub fn update_job_application<C: Queryable>(
 ///
 /// Not sure if I actually want this function
 pub fn delete_job_application<C: Queryable>(conn: &mut C, id: i32) -> Result<(), mysql::Error> {
-    let _ = conn;
-    let _ = id;
-    todo!()
+    conn.exec_drop("DELETE FROM job_applications WHERE id = :id", params! {"id" => id})
 }
 
 fn map_row(
