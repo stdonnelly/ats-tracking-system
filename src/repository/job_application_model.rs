@@ -30,7 +30,7 @@ impl Into<Params> for &JobApplication {
             "job_title" => &self.job_title,
             "application_date" => &self.application_date,
             "time_investment" => &self.time_investment,
-            "automated_response" => &self.automated_response,
+            "automated_response" => if self.automated_response {"Y"} else {"N"},
             "human_response" => &self.human_response,
             "human_response_date" => &self.human_response_date,
             "application_website" => &self.application_website,
@@ -129,7 +129,9 @@ impl Into<Value> for JobApplicationField {
             JobApplicationField::JobTitle(o) => Into::<Value>::into(o),
             JobApplicationField::ApplicationDate(o) => Into::<Value>::into(o),
             JobApplicationField::TimeInvestment(o) => Into::<Value>::into(o),
-            JobApplicationField::AutomatedResponse(o) => Into::<Value>::into(o),
+            JobApplicationField::AutomatedResponse(o) => {
+                Into::<Value>::into(if o { "Y" } else { "N" })
+            }
             JobApplicationField::HumanResponse(o) => Into::<Value>::into(o),
             JobApplicationField::HumanResponseDate(o) => Into::<Value>::into(o),
             JobApplicationField::ApplicationWebsite(o) => Into::<Value>::into(o),
