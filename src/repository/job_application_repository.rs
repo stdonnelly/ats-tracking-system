@@ -89,7 +89,7 @@ pub fn update_human_response<C: Queryable>(
 ) -> Result<(), mysql::Error> {
     conn.exec_drop(
         "UPDATE job_applications
-        SET human_response = :human_response, human_response_date = COALESCE(:human_response_date, NOW())
+        SET human_response = :human_response, human_response_date = :human_response_date
         WHERE id = :id",
         params! {
             "id" => id,
