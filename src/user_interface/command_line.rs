@@ -557,7 +557,7 @@ fn print_table(
         .tempfile_in(temp_dir)?;
 
     // Write to that file
-    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Auto Response,Human Response,Date,Website,Notes")?;
+    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Auto Response,Human Response,Date,Days to Respond,Website,Notes")?;
     for job_application in job_applications {
         writeln!(&mut file, "\"{}\",\"{}\",\"{}\",\"{}\",\"{:02}/{:02}/{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"",
             job_application.id,
