@@ -24,7 +24,7 @@ use super::shell_option::{ReadType, ShellOption, UpdateType};
 macro_rules! input_optional {
     ($partial_application:ident, $prompt:literal, $parser:ident, $field_variant:tt) => {
         input::<Option<_>, _, _>(
-            concat!($prompt, "\nLeave blank to leave unchanged: "),
+            concat!($prompt, "\nLeave blank to leave unchanged:"),
             $parser,
         )?
         .map(|o| {
@@ -36,7 +36,7 @@ macro_rules! input_optional {
     // Not sure if it's possible to just use the same template for both, since it's the same
     ($partial_application:ident, $prompt:literal, $parser:expr, $field_variant:tt) => {
         input::<Option<_>, _, _>(
-            concat!($prompt, "\nLeave blank to leave unchanged: "),
+            concat!($prompt, "\nLeave blank to leave unchanged:"),
             $parser,
         )?
         .map(|o| {
@@ -60,9 +60,9 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
     // Flag to tell the while loop when to stop
     let mut keep_looping = true;
 
-    print!("ats tracking> ");
-    stdout().flush().unwrap();
     while keep_looping {
+        print!("ats tracking> ");
+        stdout().flush().unwrap();
         // We can't use for line in stdin.lines() because that locks stdin while looping
         input.clear();
         stdin.read_line(&mut input)?;
@@ -83,10 +83,6 @@ pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
             }
             .map_or_else(|e| println!("{e}"), |_| ()),
         };
-
-        // Reprint the prompt
-        print!("ats tracking> ");
-        stdout().flush().unwrap();
     }
 
     Ok(())
@@ -99,8 +95,10 @@ fn help() -> Result<(), Box<dyn std::error::Error>> {
 Available commands:
   help | h
   exit | quit
-  create
-  read (all | pending | search <search_query> | one <id>)
+  create | new
+  read [all] | pending | <id> | search <search_query>
+  search <search_query>
+    ^shorthand for read search <search_query>
   update (response | other) <id>
   delete <id>
 "
@@ -192,7 +190,31 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
         wrap_ok,
     )?)
     .filter(|s| !s.is_empty());
-    notes = Some(input("Notes:", wrap_ok)?).filter(|s| !s.is_empty());
+    let notes_first_line = Some(input("Notes:", wrap_ok)?).filter(|s| !s.is_empty());
+
+    // Support multiline notes
+    notes = match notes_first_line {
+        Some(note) if note.starts_with('`') => {
+            let mut notes = String::new();
+            let mut note_line = note[1..].to_owned();
+            // If first notes line starts with a backtick, check until the next backtick
+            loop {
+                if let Some(first_backtick) = note_line.find('`') {
+                    // If this line contains a bactick
+                    notes += &note_line[..first_backtick];
+                    break;
+                } else {
+                    // Append this line
+                    notes += &note_line;
+                    notes += "\n";
+                    // And keep looking
+                    note_line = input("\\`bquote>", wrap_ok)?;
+                }
+            }
+            Some(notes)
+        }
+        _ => notes_first_line,
+    };
 
     // Construct the new application.
     let new_application = JobApplication {
@@ -470,9 +492,10 @@ fn update_other_command<C: Queryable>(
         },
         ApplicationWebsite
     );
-    input_optional!(
-        partial_application,
-        "Notes",
+
+    // Not using the macro for this one because it can be multiline and nothing else should behave anything like this
+    let first_notes_line = input(
+        "Notes\nLeave blank to leave unchanged: ",
         |s: &str| {
             if s == "remove" {
                 Ok(Some(None))
@@ -483,8 +506,37 @@ fn update_other_command<C: Queryable>(
                 wrap_ok(s).map(|o| o.map(Option::from))
             }
         },
-        Notes
-    );
+    )?;
+
+    // Handle multi line notes
+    match first_notes_line {
+        // Match if the first line exists and starts with a backtick
+        Some(Some(note)) if note.starts_with('`') => {
+            let mut notes = String::new();
+            let mut note_line = note[1..].to_owned();
+            // If first notes line starts with a backtick, check until the next backtick
+            loop {
+                if let Some(first_backtick) = note_line.find('`') {
+                    // If this line contains a bactick
+                    notes += &note_line[..first_backtick];
+                    break;
+                } else {
+                    // Append this line
+                    notes += &note_line;
+                    notes += "\n";
+                    // And keep looking
+                    // unwrap_or("") because this `wrap_ok` returns `None` if empty, unlike the version of `wrap_ok` in `create()`
+                    note_line = input("\\`bquote>", wrap_ok)?.unwrap_or("".to_owned());
+                }
+            }
+            partial_application.0.push(JobApplicationField::Notes(Some(notes)));
+        },
+        // Otherwise, just push the line by itself
+        // This includes Some(None), which should cause removal
+        Some(o) => partial_application.0.push(JobApplicationField::Notes(o)),
+        // If None is returned, do nothing
+        None => (),
+    }
 
     // Make sure at least one change was made
     if partial_application.0.is_empty() {
@@ -526,7 +578,13 @@ where
     print!("{prompt} ");
     std::io::stdout().flush().unwrap();
     for line in stdin().lines() {
-        match parse((line?).trim()) {
+        // For some reason Rust forces me to create this intermediate variable line_string
+        let line_string = line?;
+        let trimmed = line_string.trim();
+        if trimmed == "abort" {
+            return Err(io::Error::other("Operation aborted"));
+        }
+        match parse(trimmed) {
             Ok(o) => return Ok(o),
             Err(e) => println!("Invalid input: {e}"),
         }
@@ -555,7 +613,7 @@ fn print_table(
         .tempfile_in(temp_dir)?;
 
     // Write to that file
-    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Auto Response,Human Response,Date,Website,Notes")?;
+    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Auto Response,Human Response,Date,Days to Respond,Website,Notes")?;
     for job_application in job_applications {
         writeln!(&mut file, "\"{}\",\"{}\",\"{}\",\"{}\",\"{:02}/{:02}/{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"",
             job_application.id,
