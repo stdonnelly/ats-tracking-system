@@ -23,7 +23,7 @@ pub fn get_pending_job_applications<C: Queryable>(
     conn.query_map(
         "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
         FROM job_applications
-        WHERE human_response IS NULL",
+        WHERE human_response = 'N'",
         map_row
     )
 }
@@ -93,7 +93,7 @@ pub fn update_human_response<C: Queryable>(
         WHERE id = :id",
         params! {
             "id" => id,
-            "human_response" => Option::<&str>::from(human_response),
+            "human_response" => &human_response,
             "human_response_date" => human_response_date
         }
     )?;
@@ -131,14 +131,18 @@ pub fn update_job_application<C: Queryable>(
     query_builder += "\nWHERE id = :id";
     // RETURNING id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes";
 
-    conn.exec_drop(query_builder, partial_application).map_err(Box::<dyn std::error::Error>::from)
+    conn.exec_drop(query_builder, partial_application)
+        .map_err(Box::<dyn std::error::Error>::from)
 }
 
 /// Delete a job application from the database
 ///
 /// Not sure if I actually want this function
 pub fn delete_job_application<C: Queryable>(conn: &mut C, id: i32) -> Result<(), mysql::Error> {
-    conn.exec_drop("DELETE FROM job_applications WHERE id = :id", params! {"id" => id})
+    conn.exec_drop(
+        "DELETE FROM job_applications WHERE id = :id",
+        params! {"id" => id},
+    )
 }
 
 fn map_row(
@@ -156,13 +160,13 @@ fn map_row(
         notes,
     ): (
         i32,
-        Option<String>,
-        Option<String>,
-        Option<String>,
-        Option<Date>,
+        String,
+        String,
+        String,
+        Date,
         Option<Duration>,
-        Option<String>,
-        Option<String>,
+        String,
+        String,
         Option<Date>,
         Option<String>,
         Option<String>,
@@ -170,26 +174,14 @@ fn map_row(
 ) -> JobApplication {
     JobApplication {
         id,
-        source: source.unwrap_or("".to_string()),
-        company: company.unwrap_or("".to_string()),
-        job_title: job_title.unwrap_or("".to_string()),
-        application_date: application_date.unwrap_or(Date::from_ordinal_date(2000, 1).unwrap()),
+        source,
+        company,
+        job_title,
+        application_date,
         time_investment,
-        automated_response: {
-            if let Some(e) = automated_response {
-                e.as_str() == "Y"
-            } else {
-                false
-            }
-        },
-        human_response: {
-            if let Some(human_response_unwrapped) = human_response {
-                HumanResponse::try_from(human_response_unwrapped.as_str())
-                    .unwrap_or(HumanResponse::None)
-            } else {
-                HumanResponse::None
-            }
-        },
+        automated_response: automated_response == "Y",
+        human_response: HumanResponse::try_from(human_response.as_str())
+            .unwrap_or(HumanResponse::None),
         human_response_date,
         application_website,
         notes,

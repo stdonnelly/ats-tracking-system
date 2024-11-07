@@ -3,7 +3,7 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use mysql::{params, Params, Value};
+use mysql::{params, prelude::ToValue, Params, Value};
 use time::{Date, Duration};
 
 /// A row in the job application table
@@ -62,27 +62,22 @@ impl TryFrom<&str> for HumanResponse {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value.trim().to_lowercase().as_str() {
-            "interview request" => Ok(HumanResponse::InterviewRequest),
-            "rejection" => Ok(HumanResponse::Rejection),
-            "" => Ok(HumanResponse::None),
+            "interview request" | "i" => Ok(HumanResponse::InterviewRequest),
+            "rejection" | "r" => Ok(HumanResponse::Rejection),
+            "" | "n" => Ok(HumanResponse::None),
             _ => Err(()),
         }
     }
 }
 
-impl From<HumanResponse> for Option<&str> {
-    fn from(value: HumanResponse) -> Self {
-        match value {
-            HumanResponse::None => None,
-            HumanResponse::Rejection => Some("Rejection"),
-            HumanResponse::InterviewRequest => Some("Interview Request"),
-        }
-    }
-}
 
-impl Into<Value> for HumanResponse {
-    fn into(self) -> Value {
-        Value::from(Option::<&str>::from((self).to_owned()))
+impl ToValue for HumanResponse {
+    fn to_value(&self) -> Value {
+        match self {
+            HumanResponse::None => "N",
+            HumanResponse::Rejection => "R",
+            HumanResponse::InterviewRequest => "I",
+        }.to_value()
     }
 }
 
@@ -120,22 +115,20 @@ impl JobApplicationField {
     }
 }
 
-impl Into<Value> for JobApplicationField {
-    fn into(self) -> Value {
+impl ToValue for JobApplicationField {
+    fn to_value(&self) -> Value {
         match self {
-            JobApplicationField::Id(o) => Into::<Value>::into(o),
-            JobApplicationField::Source(o) => Into::<Value>::into(o),
-            JobApplicationField::Company(o) => Into::<Value>::into(o),
-            JobApplicationField::JobTitle(o) => Into::<Value>::into(o),
-            JobApplicationField::ApplicationDate(o) => Into::<Value>::into(o),
-            JobApplicationField::TimeInvestment(o) => Into::<Value>::into(o),
-            JobApplicationField::AutomatedResponse(o) => {
-                Into::<Value>::into(if o { "Y" } else { "N" })
-            }
-            JobApplicationField::HumanResponse(o) => Into::<Value>::into(o),
-            JobApplicationField::HumanResponseDate(o) => Into::<Value>::into(o),
-            JobApplicationField::ApplicationWebsite(o) => Into::<Value>::into(o),
-            JobApplicationField::Notes(o) => Into::<Value>::into(o),
+            JobApplicationField::Id(o) => o.to_value(),
+            JobApplicationField::Source(o) => o.to_value(),
+            JobApplicationField::Company(o) => o.to_value(),
+            JobApplicationField::JobTitle(o) => o.to_value(),
+            JobApplicationField::ApplicationDate(o) => o.to_value(),
+            JobApplicationField::TimeInvestment(o) => o.to_value(),
+            JobApplicationField::AutomatedResponse(o) => (if *o { "Y" } else { "N" }).to_value(),
+            JobApplicationField::HumanResponse(o) => o.to_value(),
+            JobApplicationField::HumanResponseDate(o) => o.to_value(),
+            JobApplicationField::ApplicationWebsite(o) => o.to_value(),
+            JobApplicationField::Notes(o) => o.to_value(),
         }
     }
 }
@@ -147,7 +140,7 @@ impl Into<Params> for PartialJobApplication {
     fn into(self) -> Params {
         let mut params_map: HashMap<Vec<u8>, Value> = HashMap::with_capacity(self.0.len());
         for field in self.0 {
-            params_map.insert(field.name().as_bytes().to_vec(), Into::<Value>::into(field));
+            params_map.insert(field.name().as_bytes().to_vec(), field.to_value());
         }
         Params::Named(params_map)
     }
