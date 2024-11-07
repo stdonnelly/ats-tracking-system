@@ -95,8 +95,10 @@ fn help() -> Result<(), Box<dyn std::error::Error>> {
 Available commands:
   help | h
   exit | quit
-  create
-  read (all | pending | search <search_query> | one <id>)
+  create | new
+  read [all] | pending | <id> | search <search_query>
+  search <search_query>
+    ^shorthand for read search <search_query>
   update (response | other) <id>
   delete <id>
 "
