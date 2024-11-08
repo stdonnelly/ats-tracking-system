@@ -12,7 +12,6 @@ CREATE TABLE job_applications (
     job_title VARCHAR(255) NOT NULL,
     application_date DATE NOT NULL,
     time_investment TIME,
-    automated_response CHAR NOT NULL DEFAULT 'N' COMMENT 'Y=true,N=FALSE',
     human_response ENUM('N','R','I') NOT NULL DEFAULT 'N',
     human_response_date DATE,
     application_website VARCHAR(255),
