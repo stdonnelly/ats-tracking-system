@@ -99,7 +99,7 @@ Available commands:
   read [all] | pending | <id> | search <search_query>
   search <search_query>
     ^shorthand for read search <search_query>
-  update (response | other) <id>
+  (update | edit) (response | other) <id>
   delete <id>
 "
     );
@@ -520,18 +520,27 @@ fn update_other_command<C: Queryable>(
 }
 
 fn delete<C: Queryable>(conn: &mut C, id: i32) -> Result<(), Box<dyn std::error::Error>> {
-    // Confirm delete
-    if input(
-        "Are you sure you want to delete this job application? [y/N]:",
-        |s| Result::<bool, Infallible>::Ok(s.starts_with(&['y', 'Y'])), // Only do it if y, Y, or something that starts with y
-    )? {
-        delete_job_application(conn, id).map_err(Box::<dyn std::error::Error>::from)?;
-        println!("Successfully deleted job application {id}");
-    } else {
-        println!("Aborting delete");
-    }
+    // Check if the job application we are trying to delete actually exists
+    if let Some(job_application) = get_job_application_by_id(conn, id)? {
+        // Print the job application so the user knows exactly what they are deleting
+        print_job_application_to_terminal(&job_application);
 
-    Ok(())
+        // Confirm delete
+        if input(
+            "Are you sure you want to delete this job application? [y/N]:",
+            |s| Result::<bool, Infallible>::Ok(s.starts_with(&['y', 'Y'])), // Only do it if y, Y, or something that starts with y
+        )? {
+            delete_job_application(conn, id).map_err(Box::<dyn std::error::Error>::from)?;
+            println!("Successfully deleted job application {id}");
+        } else {
+            println!("Aborting delete");
+        }
+        Ok(())
+    } else {
+        Err(Box::<dyn std::error::Error>::from(
+            "No job application found",
+        ))
+    }
 }
 
 /// Prints a given prompt and returns the input, parsed by `parse` to `T`
