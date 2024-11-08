@@ -56,7 +56,7 @@ impl TryFrom<&str> for ShellOption {
             // Pass command and args in this case so try_from gets the string "search" as well
             "search" => Ok(Self::Read(ReadType::try_from(value)?)),
             // For update command, parse the read type and the id
-            "update" => {
+            "update" | "edit" => {
                 if let Some((update_type_str, id_str)) = args.split_once(' ') {
                     Ok(Self::Update(
                         // Parse update type
