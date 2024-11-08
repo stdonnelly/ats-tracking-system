@@ -10,7 +10,7 @@ pub fn get_job_applications<C: Queryable>(
     conn: &mut C,
 ) -> Result<Vec<JobApplication>, mysql::Error> {
     conn.query_map(
-        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
+        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
         FROM job_applications",
         map_row
     )
@@ -21,7 +21,7 @@ pub fn get_pending_job_applications<C: Queryable>(
     conn: &mut C,
 ) -> Result<Vec<JobApplication>, mysql::Error> {
     conn.query_map(
-        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
+        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
         FROM job_applications
         WHERE human_response = 'N'",
         map_row
@@ -33,7 +33,7 @@ pub fn get_job_application_by_id<C: Queryable>(
     id: i32,
 ) -> Result<Option<JobApplication>, mysql::Error> {
     conn.exec_first(
-        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
+        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
         FROM job_applications
         WHERE id = ?",
         (id,),
@@ -48,7 +48,7 @@ pub fn search_job_applications<C: Queryable>(
     // Add wildcards to the beginning and end of the query
     let query_with_wildcards = "%".to_owned() + &query.to_lowercase() + "%";
     conn.exec_map(
-        "SELECT id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes
+        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
         FROM job_applications
         WHERE LOWER(source) LIKE :query
         OR LOWER(company) LIKE :query
@@ -66,8 +66,8 @@ pub fn insert_job_application<C: Queryable>(
     application: &JobApplication,
 ) -> Result<JobApplication, mysql::Error> {
     let new_id = conn.exec_first::<i32,_,_>(
-        "INSERT INTO job_applications (source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes)
-        VALUES (:source, :company, :job_title, :application_date, :time_investment, :automated_response, :human_response, :human_response_date, :application_website, :notes)
+        "INSERT INTO job_applications (source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes)
+        VALUES (:source, :company, :job_title, :application_date, :time_investment, :human_response, :human_response_date, :application_website, :notes)
         RETURNING id",
         application
     )?;
@@ -95,7 +95,7 @@ pub fn update_human_response<C: Queryable>(
             "id" => id,
             "human_response" => &human_response,
             "human_response_date" => human_response_date
-        }
+        },
     )?;
 
     Ok(())
@@ -129,7 +129,7 @@ pub fn update_job_application<C: Queryable>(
 
     // End with the WHERE clause
     query_builder += "\nWHERE id = :id";
-    // RETURNING id, source, company, job_title, application_date, time_investment, automated_response, human_response, human_response_date, application_website, notes";
+    // RETURNING id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes";
 
     conn.exec_drop(query_builder, partial_application)
         .map_err(Box::<dyn std::error::Error>::from)
@@ -153,7 +153,6 @@ fn map_row(
         job_title,
         application_date,
         time_investment,
-        automated_response,
         human_response,
         human_response_date,
         application_website,
@@ -165,7 +164,6 @@ fn map_row(
         String,
         Date,
         Option<Duration>,
-        String,
         String,
         Option<Date>,
         Option<String>,
@@ -179,7 +177,6 @@ fn map_row(
         job_title,
         application_date,
         time_investment,
-        automated_response: automated_response == "Y",
         human_response: HumanResponse::try_from(human_response.as_str())
             .unwrap_or(HumanResponse::None),
         human_response_date,

@@ -15,7 +15,6 @@ pub struct JobApplication {
     pub job_title: String,
     pub application_date: Date,
     pub time_investment: Option<Duration>,
-    pub automated_response: bool,
     pub human_response: HumanResponse,
     pub human_response_date: Option<Date>,
     pub application_website: Option<String>,
@@ -30,7 +29,6 @@ impl Into<Params> for &JobApplication {
             "job_title" => &self.job_title,
             "application_date" => &self.application_date,
             "time_investment" => &self.time_investment,
-            "automated_response" => if self.automated_response {"Y"} else {"N"},
             "human_response" => &self.human_response,
             "human_response_date" => &self.human_response_date,
             "application_website" => &self.application_website,
@@ -70,14 +68,14 @@ impl TryFrom<&str> for HumanResponse {
     }
 }
 
-
 impl ToValue for HumanResponse {
     fn to_value(&self) -> Value {
         match self {
             HumanResponse::None => "N",
             HumanResponse::Rejection => "R",
             HumanResponse::InterviewRequest => "I",
-        }.to_value()
+        }
+        .to_value()
     }
 }
 
@@ -89,7 +87,6 @@ pub enum JobApplicationField {
     JobTitle(String),
     ApplicationDate(Date),
     TimeInvestment(Option<Duration>),
-    AutomatedResponse(bool),
     HumanResponse(HumanResponse),
     HumanResponseDate(Option<Date>),
     ApplicationWebsite(Option<String>),
@@ -105,7 +102,6 @@ impl JobApplicationField {
             JobApplicationField::JobTitle(_) => "job_title",
             JobApplicationField::ApplicationDate(_) => "application_date",
             JobApplicationField::TimeInvestment(_) => "time_investment",
-            JobApplicationField::AutomatedResponse(_) => "automated_response",
             JobApplicationField::HumanResponse(_) => "human_response",
             JobApplicationField::HumanResponseDate(_) => "human_response_date",
             JobApplicationField::ApplicationWebsite(_) => "application_website",
@@ -124,7 +120,6 @@ impl ToValue for JobApplicationField {
             JobApplicationField::JobTitle(o) => o.to_value(),
             JobApplicationField::ApplicationDate(o) => o.to_value(),
             JobApplicationField::TimeInvestment(o) => o.to_value(),
-            JobApplicationField::AutomatedResponse(o) => (if *o { "Y" } else { "N" }).to_value(),
             JobApplicationField::HumanResponse(o) => o.to_value(),
             JobApplicationField::HumanResponseDate(o) => o.to_value(),
             JobApplicationField::ApplicationWebsite(o) => o.to_value(),

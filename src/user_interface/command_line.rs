@@ -114,7 +114,6 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
     let job_title: String;
     let application_date: Date;
     let time_investment: Option<Duration>;
-    let automated_response: bool;
     let human_response: HumanResponse;
     let human_response_date: Option<Date>;
     let application_website: Option<String>;
@@ -153,17 +152,8 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
             }
         },
     )?;
-    automated_response = input("Was there an automated email after applying? [y/n]:", |s| {
-        if s.starts_with(&['y', 'Y']) {
-            Ok(true)
-        } else if s.starts_with(&['n', 'N']) {
-            Ok(false)
-        } else {
-            Err("Enter 'y' for yes or 'n' for no")
-        }
-    })?;
     human_response = input(
-        "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
+        "Response sent by a human\nEnter r for rejection, i for interview request, or leave blank for none:",
         |s| {
             if s.starts_with(&['r', 'R']) {
                 Ok(HumanResponse::Rejection)
@@ -224,7 +214,6 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
         job_title,
         application_date,
         time_investment,
-        automated_response,
         human_response,
         human_response_date,
         application_website,
@@ -271,7 +260,6 @@ Company: {}
 Job title: {}
 Application date: {:02}/{:02}/{}
 Time Taken to complete application: {}
-Was there an automated response after applying? {}
 Response from a human: {}
 Human response date: {}
 Response time (days): {}
@@ -289,10 +277,6 @@ Notes: {}",
             t.whole_minutes(),
             t.whole_seconds() % 60
         )),
-        match ja.automated_response {
-            true => "Yes",
-            false => "No",
-        },
         ja.human_response,
         ja.human_response_date.map_or("".to_string(), |d| format!(
             "{:02}/{:02}/{}",
@@ -337,7 +321,7 @@ fn update_human_response_command<C: Queryable>(
 
     // Get the parameters
     human_response = input(
-        "Response sent by a human later\nEnter r for rejection, i for interview request, or leave blank for none:",
+        "Response sent by a human\nEnter r for rejection, i for interview request, or leave blank for none:",
         |s| {
             if s.starts_with(&['r', 'R']) {
                 Ok(HumanResponse::Rejection)
@@ -428,23 +412,7 @@ fn update_other_command<C: Queryable>(
     );
     input_optional!(
         partial_application,
-        "Was there an automated email after applying? [y/n]",
-        |s| {
-            if s.is_empty() {
-                Ok(None)
-            } else if s.starts_with(&['y', 'Y']) {
-                Ok(Some(true))
-            } else if s.starts_with(&['n', 'N']) {
-                Ok(Some(false))
-            } else {
-                Err("Enter 'y' for yes or 'n' for no")
-            }
-        },
-        AutomatedResponse
-    );
-    input_optional!(
-        partial_application,
-        "Response sent by a human later\nEnter r for rejection, i for interview request, or 'remove' for none",
+        "Response sent by a human\nEnter r for rejection, i for interview request, or 'remove' for none",
         |s| {
             if s == "remove" {
                 Ok(Some(HumanResponse::None))
@@ -494,19 +462,16 @@ fn update_other_command<C: Queryable>(
     );
 
     // Not using the macro for this one because it can be multiline and nothing else should behave anything like this
-    let first_notes_line = input(
-        "Notes\nLeave blank to leave unchanged: ",
-        |s: &str| {
-            if s == "remove" {
-                Ok(Some(None))
-            } else {
-                // If the result is Ok, check if it's blank
-                // If blank, just return Ok(None) so the item does not get added to the partial application record (i.e. Ok(None)->Ok(None))
-                // If successful parse, return Ok(Some(*parsed*))
-                wrap_ok(s).map(|o| o.map(Option::from))
-            }
-        },
-    )?;
+    let first_notes_line = input("Notes\nLeave blank to leave unchanged: ", |s: &str| {
+        if s == "remove" {
+            Ok(Some(None))
+        } else {
+            // If the result is Ok, check if it's blank
+            // If blank, just return Ok(None) so the item does not get added to the partial application record (i.e. Ok(None)->Ok(None))
+            // If successful parse, return Ok(Some(*parsed*))
+            wrap_ok(s).map(|o| o.map(Option::from))
+        }
+    })?;
 
     // Handle multi line notes
     match first_notes_line {
@@ -529,8 +494,10 @@ fn update_other_command<C: Queryable>(
                     note_line = input("\\`bquote>", wrap_ok)?.unwrap_or("".to_owned());
                 }
             }
-            partial_application.0.push(JobApplicationField::Notes(Some(notes)));
-        },
+            partial_application
+                .0
+                .push(JobApplicationField::Notes(Some(notes)));
+        }
         // Otherwise, just push the line by itself
         // This includes Some(None), which should cause removal
         Some(o) => partial_application.0.push(JobApplicationField::Notes(o)),
@@ -613,9 +580,9 @@ fn print_table(
         .tempfile_in(temp_dir)?;
 
     // Write to that file
-    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Auto Response,Human Response,Date,Days to Respond,Website,Notes")?;
+    writeln!(&mut file, "ID,Source,Company,Job Title,Application Date,Time Taken,Human Response,Date,Days to Respond,Website,Notes")?;
     for job_application in job_applications {
-        writeln!(&mut file, "\"{}\",\"{}\",\"{}\",\"{}\",\"{:02}/{:02}/{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"",
+        writeln!(&mut file, "\"{}\",\"{}\",\"{}\",\"{}\",\"{:02}/{:02}/{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"",
             job_application.id,
             job_application.source.replace("\"","\"\""),
             job_application.company.replace("\"","\"\""),
@@ -626,10 +593,6 @@ fn print_table(
             job_application.time_investment.map_or("".to_string(),
                 |t| format!("{:02}:{:02}", t.whole_minutes(), t.whole_seconds() % 60)
             ),
-            match job_application.automated_response {
-                true => "Yes",
-                false => "No",
-            },
             job_application.human_response,
             job_application.human_response_date.map_or("".to_string(),
                 |d| format!("{:02}/{:02}/{}", d.month() as u8, d.day(), d.year())
