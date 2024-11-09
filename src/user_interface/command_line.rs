@@ -190,7 +190,7 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
             // If first notes line starts with a backtick, check until the next backtick
             loop {
                 if let Some(first_backtick) = note_line.find('`') {
-                    // If this line contains a bactick
+                    // If this line contains a backtick
                     notes += &note_line[..first_backtick];
                     break;
                 } else {
@@ -291,10 +291,10 @@ Notes: {}",
             }),
         ja.application_website
             .as_deref()
-            .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
+            .unwrap_or(""),
         ja.notes
             .as_deref()
-            .map_or("".to_string(), |s| s.replace("\"", "\"\"")),
+            .unwrap_or(""),
     );
 }
 
@@ -482,7 +482,7 @@ fn update_other_command<C: Queryable>(
             // If first notes line starts with a backtick, check until the next backtick
             loop {
                 if let Some(first_backtick) = note_line.find('`') {
-                    // If this line contains a bactick
+                    // If this line contains a backtick
                     notes += &note_line[..first_backtick];
                     break;
                 } else {
