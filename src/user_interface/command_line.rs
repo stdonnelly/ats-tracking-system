@@ -289,12 +289,8 @@ Notes: {}",
                 let duration_between_dates = resp_date - ja.application_date;
                 duration_between_dates.whole_days().to_string()
             }),
-        ja.application_website
-            .as_deref()
-            .unwrap_or(""),
-        ja.notes
-            .as_deref()
-            .unwrap_or(""),
+        ja.application_website.as_deref().unwrap_or_default(),
+        ja.notes.as_deref().unwrap_or_default(),
     );
 }
 
@@ -491,7 +487,7 @@ fn update_other_command<C: Queryable>(
                     notes += "\n";
                     // And keep looking
                     // unwrap_or("") because this `wrap_ok` returns `None` if empty, unlike the version of `wrap_ok` in `create()`
-                    note_line = input("\\`bquote>", wrap_ok)?.unwrap_or("".to_owned());
+                    note_line = input("\\`bquote>", wrap_ok)?.unwrap_or_default();
                 }
             }
             partial_application
