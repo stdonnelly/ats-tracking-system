@@ -1,5 +1,5 @@
 use mysql::{params, prelude::Queryable};
-use time::{Date, Duration};
+use time::Date;
 
 use super::job_application_model::{
     HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
@@ -9,10 +9,9 @@ use super::job_application_model::{
 pub fn get_job_applications<C: Queryable>(
     conn: &mut C,
 ) -> Result<Vec<JobApplication>, mysql::Error> {
-    conn.query_map(
+    conn.query(
         "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
-        FROM job_applications",
-        map_row
+        FROM job_applications"
     )
 }
 
@@ -20,11 +19,10 @@ pub fn get_job_applications<C: Queryable>(
 pub fn get_pending_job_applications<C: Queryable>(
     conn: &mut C,
 ) -> Result<Vec<JobApplication>, mysql::Error> {
-    conn.query_map(
+    conn.query(
         "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
         FROM job_applications
-        WHERE human_response = 'N'",
-        map_row
+        WHERE human_response = 'N'"
     )
 }
 
@@ -38,7 +36,6 @@ pub fn get_job_application_by_id<C: Queryable>(
         WHERE id = ?",
         (id,),
     )
-    .map(|o| {o.map(map_row)})
 }
 
 pub fn search_job_applications<C: Queryable>(
@@ -47,14 +44,13 @@ pub fn search_job_applications<C: Queryable>(
 ) -> Result<Vec<JobApplication>, mysql::Error> {
     // Add wildcards to the beginning and end of the query
     let query_with_wildcards = "%".to_owned() + &query.to_lowercase() + "%";
-    conn.exec_map(
+    conn.exec(
         "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
         FROM job_applications
         WHERE LOWER(source) LIKE :query
         OR LOWER(company) LIKE :query
         OR LOWER(job_title) LIKE :query",
-        params! {"query" => query_with_wildcards},
-        map_row
+        params! {"query" => query_with_wildcards}
     )
 }
 
@@ -65,17 +61,13 @@ pub fn insert_job_application<C: Queryable>(
     conn: &mut C,
     application: &JobApplication,
 ) -> Result<JobApplication, mysql::Error> {
-    let new_id = conn.exec_first::<i32,_,_>(
+    conn.exec_first(
         "INSERT INTO job_applications (source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes)
         VALUES (:source, :company, :job_title, :application_date, :time_investment, :human_response, :human_response_date, :application_website, :notes)
         RETURNING id",
         application
-    )?;
-
-    Ok(JobApplication {
-        id: new_id.unwrap_or_default(),
-        ..application.clone()
-    })
+    )
+    .map(|new_id| JobApplication {id: new_id.unwrap_or_default(), ..application.clone()})
 }
 
 /// Update the human response of a job application
@@ -96,9 +88,7 @@ pub fn update_human_response<C: Queryable>(
             "human_response" => &human_response,
             "human_response_date" => human_response_date
         },
-    )?;
-
-    Ok(())
+    )
 }
 
 /// Update a job application, returning the updated application.
@@ -108,7 +98,7 @@ pub fn update_human_response<C: Queryable>(
 pub fn update_job_application<C: Queryable>(
     conn: &mut C,
     partial_application: PartialJobApplication,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), mysql::Error> {
     let mut query_builder = "UPDATE job_applications".to_owned();
 
     // Loop over all field names
@@ -132,7 +122,6 @@ pub fn update_job_application<C: Queryable>(
     // RETURNING id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes";
 
     conn.exec_drop(query_builder, partial_application)
-        .map_err(Box::<dyn std::error::Error>::from)
 }
 
 /// Delete a job application from the database
@@ -143,44 +132,4 @@ pub fn delete_job_application<C: Queryable>(conn: &mut C, id: i32) -> Result<(),
         "DELETE FROM job_applications WHERE id = :id",
         params! {"id" => id},
     )
-}
-
-fn map_row(
-    (
-        id,
-        source,
-        company,
-        job_title,
-        application_date,
-        time_investment,
-        human_response,
-        human_response_date,
-        application_website,
-        notes,
-    ): (
-        i32,
-        String,
-        String,
-        String,
-        Date,
-        Option<Duration>,
-        String,
-        Option<Date>,
-        Option<String>,
-        Option<String>,
-    ),
-) -> JobApplication {
-    JobApplication {
-        id,
-        source,
-        company,
-        job_title,
-        application_date,
-        time_investment,
-        human_response: HumanResponse::try_from(human_response.as_str())
-            .unwrap_or(HumanResponse::None),
-        human_response_date,
-        application_website,
-        notes,
-    }
 }

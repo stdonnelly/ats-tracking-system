@@ -3,11 +3,16 @@ use std::{
     fmt::{Debug, Display},
 };
 
-use mysql::{params, prelude::ToValue, Params, Value};
+use mysql::{
+    params,
+    prelude::{FromRow, FromValue, ToValue},
+    Params, Value,
+};
 use time::{Date, Duration};
 
 /// A row in the job application table
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
+#[mysql(table_name = "job_applications")]
 pub struct JobApplication {
     pub id: i32,
     pub source: String,
@@ -38,8 +43,9 @@ impl Into<Params> for &JobApplication {
 }
 
 /// Enum to hold possible human responses
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub enum HumanResponse {
+    #[default]
     None,
     Rejection,
     InterviewRequest,
@@ -50,7 +56,7 @@ impl Display for HumanResponse {
         f.write_str(match self {
             Self::None => "No response yet",
             Self::Rejection => "Rejection",
-            Self::InterviewRequest => "Interview Request",
+            Self::InterviewRequest => "Interview request",
         })
     }
 }
@@ -68,6 +74,13 @@ impl TryFrom<&str> for HumanResponse {
     }
 }
 
+impl From<String> for HumanResponse {
+    /// Tries to parse a `String` as a `HumanResponse`, if unrecognized, `HumanResponse::None` is returned
+    fn from(value: String) -> Self {
+        return TryFrom::<&str>::try_from(&value).unwrap_or_default();
+    }
+}
+
 impl ToValue for HumanResponse {
     fn to_value(&self) -> Value {
         match self {
@@ -77,6 +90,12 @@ impl ToValue for HumanResponse {
         }
         .to_value()
     }
+}
+
+impl FromValue for HumanResponse {
+    // All we need to do is specify an intermediate.
+    // The default implementation automatically converts `Value` -> `String` -> `HumanResponse`
+    type Intermediate = String;
 }
 
 /// Field in a JobApplication to allow the creation of partial job applications
