@@ -458,7 +458,7 @@ fn update_other_command<C: Queryable>(
     );
 
     // Not using the macro for this one because it can be multiline and nothing else should behave anything like this
-    let first_notes_line = input("Notes\nLeave blank to leave unchanged: ", |s: &str| {
+    let first_notes_line = input("Notes\nLeave blank to leave unchanged:", |s: &str| {
         if s == "remove" {
             Ok(Some(None))
         } else {
