@@ -2,10 +2,9 @@ use std::env;
 
 use dotenv::dotenv;
 use mysql::{OptsBuilder, Pool, PooledConn};
-use user_interface::command_line;
 
-mod repository;
-mod user_interface;
+mod command_line;
+mod shell_option;
 
 fn main() {
     // Objects that should be owned by the main function

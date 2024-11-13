@@ -1,11 +1,13 @@
-[package]
-name = "ats-tracking-system"
+[workspace]
+members = [
+    "repository",
+    "cli",
+]
+default-members = ["cli"]
+resolver = "2"
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
-
-[dependencies]
-dotenv = "0.15.0"
-mysql = "25.0.1"
-opener = "0.7.2"
-tempfile = "3.12.0"
-time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
+license = "MIT"
+repository = "https://github.com/stdonnelly/ats-tracking-system"

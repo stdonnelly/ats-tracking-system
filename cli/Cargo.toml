@@ -1,0 +1,16 @@
+[package]
+name = "cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "ats-tracking-cli"
+path = "src/main.rs"
+
+[dependencies]
+repository = { path = "../repository" }
+dotenv = "0.15.0"
+opener = "0.7.2"
+tempfile = "3.12.0"
+mysql = "25.0.1"
+time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }

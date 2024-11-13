@@ -8,7 +8,7 @@ use std::{
 use mysql::prelude::Queryable;
 use time::{macros::format_description, Date, Duration};
 
-use crate::repository::{
+use repository::{
     job_application_model::{
         HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
     },
