@@ -326,4 +326,66 @@ mod tests {
             "Unknown value -> None"
         );
     }
+
+    /// Test Into<Params> for PartialJobApplication
+    #[test]
+    fn test_into_params_partial() {
+        // This should be the same job application as test_into_params, but as a PartialJobApplication
+        let example_job_application: PartialJobApplication = PartialJobApplication(vec![
+            JobApplicationField::Source("foo source".to_owned()),
+            JobApplicationField::Company("foo company".to_owned()),
+            JobApplicationField::JobTitle("foo job".to_owned()),
+            JobApplicationField::ApplicationDate(
+                Date::from_calendar_date(2001, Month::February, 2).unwrap(),
+            ),
+            JobApplicationField::TimeInvestment(Some(90.seconds())),
+            JobApplicationField::HumanResponse(HumanResponse::Rejection),
+            JobApplicationField::HumanResponseDate(Some(
+                Date::from_calendar_date(2001, Month::February, 3).unwrap(),
+            )),
+            JobApplicationField::ApplicationWebsite(Some("foo website".to_owned())),
+            JobApplicationField::Notes(Some("foo notes".to_owned())),
+        ]);
+
+        // This is all the same as test_into_params
+        // Convert using impl Into<Params> for PartialJobApplication
+        let actual_params: Params = example_job_application.into();
+        let expected_map = HashMap::from([
+            (b"source".to_vec(), Value::Bytes(b"foo source".to_vec())),
+            (b"company".to_vec(), Value::Bytes(b"foo company".to_vec())),
+            (b"job_title".to_vec(), Value::Bytes(b"foo job".to_vec())),
+            (
+                b"application_date".to_vec(),
+                Value::Date(2001, 2, 2, 0, 0, 0, 0),
+            ),
+            (
+                b"time_investment".to_vec(),
+                Value::Time(false, 0, 0, 1, 30, 0),
+            ),
+            (b"human_response".to_vec(), Value::Bytes(b"R".to_vec())),
+            (
+                b"human_response_date".to_vec(),
+                Value::Date(2001, 2, 3, 0, 0, 0, 0),
+            ),
+            (
+                b"application_website".to_vec(),
+                Value::Bytes(b"foo website".to_vec()),
+            ),
+            (b"notes".to_vec(), Value::Bytes(b"foo notes".to_vec())),
+        ]);
+
+        // Ensure the params are named
+        if let Params::Named(actual_map) = actual_params {
+            // Assert there are 10 parameters so
+            assert_eq!(
+                actual_map, expected_map,
+                "Actual and expected params differ"
+            );
+        } else {
+            panic!(
+                "params should be positional, actual params is {:?}",
+                actual_params
+            );
+        }
+    }
 }
