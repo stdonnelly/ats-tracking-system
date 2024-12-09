@@ -1,9 +1,9 @@
 [workspace]
 members = [
     "repository",
-    "cli",
+    "cli", "gui",
 ]
-default-members = ["cli"]
+default-members = ["cli", "gui"]
 resolver = "2"
 
 [workspace.package]

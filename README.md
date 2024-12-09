@@ -22,3 +22,8 @@ Many applications do not even receive a response, making this a useful tool for 
 - Frontend: During initial development and testing, there will be a command-line interface.
   After most of the application is developed, some kind of GUI will probably be made.
   This may be either GTK, Qt, or some web frontend.
+
+## License
+
+This software is licensed under the MIT license (see [LICENSE](LICENSE)) but uses the Slint library under the GNU GPLv3 license for the gui crate.
+Any derivatives of this project that include Slint need to use one of the [Slint licenses](https://github.com/slint-ui/slint/blob/master/LICENSE.md).

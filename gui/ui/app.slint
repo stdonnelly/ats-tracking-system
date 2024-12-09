@@ -1,0 +1,27 @@
+import { StandardTableView, StandardListView, ListView } from "std-widgets.slint";
+
+export component AppWindow inherits Window {
+    // Might need to be in-out if we will store 
+    in property <[[StandardListViewItem]]> table-rows;
+    // callback row-clicked(string);
+    title: "ATS Tracking System";
+    StandardTableView {
+        // TODO: Figure out more appropriate sizing
+        width: 100%;
+        height: 100%;
+        columns: [
+            { title: "ID" },
+            { title: "Source" },
+            { title: "Company" },
+            { title: "Job Title" },
+            { title: "Application Date" },
+            { title: "Time Taken" },
+            { title: "Human Response" },
+            { title: "Date" },
+            { title: "Days to Respond" },
+            { title: "Website" },
+            { title: "Notes" },
+        ];
+        rows: table-rows;
+    }
+}
