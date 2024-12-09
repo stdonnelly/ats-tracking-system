@@ -266,9 +266,9 @@ Response time (days): {}
 Application website: {}
 Notes: {}",
         ja.id,
-        ja.source.replace("\"", "\"\""),
-        ja.company.replace("\"", "\"\""),
-        ja.job_title.replace("\"", "\"\""),
+        ja.source,
+        ja.company,
+        ja.job_title,
         ja.application_date.month() as u8,
         ja.application_date.day(),
         ja.application_date.year(),
