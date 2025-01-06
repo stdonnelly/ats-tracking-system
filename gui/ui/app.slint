@@ -1,27 +1,207 @@
 import { StandardTableView, StandardListView, ListView } from "std-widgets.slint";
 
+export struct JobApplicationView {
+    id: int,
+    source: string,
+    company: string,
+    job-title: string,
+    application-date: string,
+    time-investment: string,
+    human-response: string,
+    human-response-date: string,
+    days-to-respond: string, // This will be an int or None, using a string allows us to handle Optionals in code instead of layout
+    application-website: string,
+    notes: string,
+}
+
 export component AppWindow inherits Window {
+    callback use-job-application(int);
+    
     // Might need to be in-out if we will store 
     in property <[[StandardListViewItem]]> table-rows;
-    // callback row-clicked(string);
+    in property <JobApplicationView> selected-job-application;
+
+    preferred-width: 1024px;
+    preferred-height: 512px;
+
     title: "ATS Tracking System";
-    StandardTableView {
-        // TODO: Figure out more appropriate sizing
+    HorizontalLayout {
         width: 100%;
-        height: 100%;
-        columns: [
-            { title: "ID" },
-            { title: "Source" },
-            { title: "Company" },
-            { title: "Job Title" },
-            { title: "Application Date" },
-            { title: "Time Taken" },
-            { title: "Human Response" },
-            { title: "Date" },
-            { title: "Days to Respond" },
-            { title: "Website" },
-            { title: "Notes" },
-        ];
-        rows: table-rows;
+
+        // Left sidebar that displays all information about the currently selected element
+        GridLayout {
+            width: 20%;
+            spacing: 5px;
+            padding: 5px;
+            Row {
+                Text {
+                    text: "ID";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                    // This sets the minimum width for this entire column.
+                    // This is necessary because slint sometimes displays the second column over this one instead of just causing the second column to wrap.
+                    min-width: 6rem;
+                }
+
+                Text {
+                    text: selected-job-application.id;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Source";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.source;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Company";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.company;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Job Title";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.job-title;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Application Date";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.application-date;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Time Taken";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.time-investment;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Human Response";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.human-response;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Date";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.human-response-date;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Days to Respond";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.days-to-respond;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Website";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.application-website;
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Notes";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    text: selected-job-application.notes;
+                    wrap: word-wrap;
+                }
+            }
+        }
+
+        // The table
+        StandardTableView {
+            current-row-changed(current-row) => {
+                use-job-application(table-rows[current-row][0].text.to-float());
+            }
+            width: 80%;
+            height: 100%;
+            columns: [
+                // Column titles have manually added newlines because there is no automatic word-wrap for column titles
+                { title: "ID", min-width: 4rem },
+                { title: "Source", min-width: 6rem },
+                { title: "Company", min-width: 7rem },
+                { title: "Job Title", min-width: 7rem },
+                { title: "Application\nDate", min-width: 7rem },
+                { title: "Time\nTaken", min-width: 5rem },
+                { title: "Human\nResponse", min-width: 10rem },
+                { title: "Date", min-width: 7rem },
+                { title: "Days to\nRespond", min-width: 7rem },
+                { title: "Website", min-width: 7rem },
+                { title: "Notes", min-width: 5rem },
+            ];
+            rows: table-rows;
+        }
     }
 }
