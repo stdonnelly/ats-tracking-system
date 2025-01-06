@@ -1,15 +1,21 @@
-import { StandardTableView, StandardListView, ListView } from "std-widgets.slint";
+import { StandardTableView, StandardListView, ListView, Date } from "std-widgets.slint";
+
+export enum HumanResponseView {
+    None,
+    Rejection,
+    InterviewRequest,
+}
 
 export struct JobApplicationView {
     id: int,
     source: string,
     company: string,
     job-title: string,
-    application-date: string,
+    application-date: Date,
     time-investment: string,
-    human-response: string,
-    human-response-date: string,
-    days-to-respond: string, // This will be an int or None, using a string allows us to handle Optionals in code instead of layout
+    human-response: HumanResponseView,
+    human-response-date: Date,
+    days-to-respond: int,
     application-website: string,
     notes: string,
 }
@@ -20,6 +26,27 @@ export component AppWindow inherits Window {
     // Might need to be in-out if we will store 
     in property <[[StandardListViewItem]]> table-rows;
     in property <JobApplicationView> selected-job-application;
+
+    pure function human-response-to-string(hr: HumanResponseView) -> string {
+        if (hr == HumanResponseView.None) {
+            "No response yet"
+        } else if (hr == HumanResponseView.Rejection) {
+            "Rejection"
+        } else if (hr == HumanResponseView.InterviewRequest) {
+            "Interview request"
+        } else {
+            "ERROR"
+        }
+    }
+
+    // Use `s` if `hr` is not None, otherwise use an empty string
+    pure function display-if-human-response(hr: HumanResponseView, s: string) -> string {
+        if (hr != HumanResponseView.None) {
+            s
+        } else {
+            ""
+        }
+    }
 
     preferred-width: 1024px;
     preferred-height: 512px;
@@ -96,7 +123,11 @@ export component AppWindow inherits Window {
                 }
 
                 Text {
-                    text: selected-job-application.application-date;
+                    text: @tr(
+                        "{}/{}/{}",
+                        selected-job-application.application-date.month,
+                        selected-job-application.application-date.day,
+                        selected-job-application.application-date.year);
                     wrap: word-wrap;
                 }
             }
@@ -122,20 +153,24 @@ export component AppWindow inherits Window {
                 }
 
                 Text {
-                    text: selected-job-application.human-response;
+                    text: human-response-to-string(selected-job-application.human-response);
                     wrap: word-wrap;
                 }
             }
 
             Row {
                 Text {
-                    text: "Date";
+                    text: "Response Date";
                     font-weight: 700;
                     wrap: word-wrap;
                 }
 
                 Text {
-                    text: selected-job-application.human-response-date;
+                    text: display-if-human-response(selected-job-application.human-response, @tr(
+                            "{}/{}/{}",
+                            selected-job-application.human-response-date.month,
+                            selected-job-application.human-response-date.day,
+                            selected-job-application.human-response-date.year));
                     wrap: word-wrap;
                 }
             }
@@ -148,7 +183,7 @@ export component AppWindow inherits Window {
                 }
 
                 Text {
-                    text: selected-job-application.days-to-respond;
+                    text: display-if-human-response(selected-job-application.human-response, selected-job-application.days-to-respond);
                     wrap: word-wrap;
                 }
             }
@@ -162,7 +197,7 @@ export component AppWindow inherits Window {
 
                 Text {
                     text: selected-job-application.application-website;
-                    wrap: word-wrap;
+                    wrap: char-wrap;
                 }
             }
 
