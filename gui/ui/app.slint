@@ -1,4 +1,4 @@
-import { StandardTableView, StandardListView, ListView, Date } from "std-widgets.slint";
+import { StandardTableView, StandardListView, ListView, Date, LineEdit, ComboBox, TextEdit, Button, StandardButton, Palette, DatePickerPopup } from "std-widgets.slint";
 
 export enum HumanResponseView {
     None,
@@ -22,10 +22,11 @@ export struct JobApplicationView {
 
 export component AppWindow inherits Window {
     callback use-job-application(int);
+    callback submit-job-application <=> job-application-submit.clicked;
     
     // Might need to be in-out if we will store 
     in property <[[StandardListViewItem]]> table-rows;
-    in property <JobApplicationView> selected-job-application;
+    in-out property <JobApplicationView> selected-job-application;
 
     pure function human-response-to-string(hr: HumanResponseView) -> string {
         if (hr == HumanResponseView.None) {
@@ -36,6 +37,17 @@ export component AppWindow inherits Window {
             "Interview request"
         } else {
             "ERROR"
+        }
+    }
+
+    pure function string-to-human-response(s: string) -> HumanResponseView {
+        if (s == "Rejection") {
+            HumanResponseView.Rejection;
+        } else if (s == "Interview request") {
+            HumanResponseView.InterviewRequest;
+        } else {
+            // Fallback to None if None or not recognized
+            HumanResponseView.None;
         }
     }
 
@@ -71,6 +83,7 @@ export component AppWindow inherits Window {
                 }
 
                 Text {
+                    height: 2rem;
                     text: selected-job-application.id;
                     wrap: word-wrap;
                 }
@@ -83,9 +96,13 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                source-input := LineEdit {
+                    height: 2.5rem;
                     text: selected-job-application.source;
-                    wrap: word-wrap;
+                    edited(text) => {
+                        selected-job-application.source = text;
+                    }
+                    // wrap: word-wrap;
                 }
             }
 
@@ -96,9 +113,13 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                company-input := LineEdit {
+                    height: 2.5rem;
                     text: selected-job-application.company;
-                    wrap: word-wrap;
+                    edited(text) => {
+                        selected-job-application.company = text;
+                    }
+                    // wrap: word-wrap;
                 }
             }
 
@@ -109,9 +130,13 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                job-title-input := LineEdit {
+                    height: 2.5rem;
                     text: selected-job-application.job-title;
-                    wrap: word-wrap;
+                    edited(text) => {
+                        selected-job-application.job-title = text;
+                    }
+                    // wrap: word-wrap;
                 }
             }
 
@@ -122,13 +147,46 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                // Date inputs will be LineEdit to make sure formatting is consistent with the actual text inputs.
+                // But the text editing is actually disabled and clicking on the element will bring up a date picker popup
+                application-date-input := LineEdit {
+                    height: 2.5rem;
                     text: @tr(
-                        "{}/{}/{}",
-                        selected-job-application.application-date.month,
-                        selected-job-application.application-date.day,
-                        selected-job-application.application-date.year);
-                    wrap: word-wrap;
+                    "{}/{}/{}",
+                    selected-job-application.application-date.month,
+                    selected-job-application.application-date.day,
+                    selected-job-application.application-date.year);
+                    // wrap: word-wrap;
+                    read-only: true;
+
+                    // Use the `has-focus` property as a pseudo `clicked` callback
+                    changed has-focus => {
+                        if (self.has-focus) {
+                            application-date-picker.show();
+                        }
+                    }
+                }
+
+                application-date-picker := DatePickerPopup {
+                    title: "Application Date";
+                    // Change to this when Slint is updated
+                    close-policy: no-auto-close;
+                    // close-on-click: false;
+                    canceled() => {
+                        // Close this
+                        application-date-picker.close();
+                        // Clear the focus on the input field.
+                        // This is done because the date picker is only activated when `application-date-input` focus changes.
+                        // If the focus is not cleared, subsequent clicks of the same field would not change the focus.
+                        application-date-input.clear-focus();
+                    }
+                    accepted(date) => {
+                        // Update the application date. This is enough because `@tr()` automatically updates and the binding is never lost.
+                        selected-job-application.application-date = date;
+                        // See the comments on these in `cancelled()`
+                        application-date-picker.close();
+                        application-date-input.clear-focus();
+                    }
                 }
             }
 
@@ -139,9 +197,13 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                time-investment-input := LineEdit {
+                    height: 2.5rem;
                     text: selected-job-application.time-investment;
-                    wrap: word-wrap;
+                    edited(text) => {
+                        selected-job-application.time-investment = text;
+                    }
+                    // wrap: word-wrap;
                 }
             }
 
@@ -152,9 +214,15 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
-                    text: human-response-to-string(selected-job-application.human-response);
-                    wrap: word-wrap;
+                human-response-input := ComboBox {
+                    height: 2.5rem;
+                    // text: human-response-to-string(selected-job-application.human-response);
+                    model: ["No response yet", "Rejection", "Interview request"];
+                    current-value: human-response-to-string(selected-job-application.human-response);
+                    selected(value) => {
+                        selected-job-application.human-response = string-to-human-response(value);
+                    }
+                    // wrap: word-wrap;
                 }
             }
 
@@ -165,13 +233,40 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                // Very similar to `application-date-input` and `application-data-picker`.
+                // See the comments on them for a more detailed explanation of this.
+                response-date-input := LineEdit {
+                    height: 2.5rem;
                     text: display-if-human-response(selected-job-application.human-response, @tr(
                             "{}/{}/{}",
                             selected-job-application.human-response-date.month,
                             selected-job-application.human-response-date.day,
                             selected-job-application.human-response-date.year));
-                    wrap: word-wrap;
+                    read-only: true;
+                    // wrap: word-wrap;
+
+                    // Use the `has-focus` property as a pseudo `clicked` callback
+                    changed has-focus => {
+                        if (self.has-focus) {
+                            response-date-picker.show();
+                        }
+                    }
+                }
+
+                response-date-picker := DatePickerPopup {
+                    title: "Response Date";
+                    // Change to this when Slint is updated
+                    close-policy: no-auto-close;
+                    // close-on-click: false;
+                    canceled() => {
+                        response-date-picker.close();
+                        response-date-input.clear-focus();
+                    }
+                    accepted(date) => {
+                        selected-job-application.human-response-date = date;
+                        response-date-picker.close();
+                        response-date-input.clear-focus();
+                    }
                 }
             }
 
@@ -183,6 +278,7 @@ export component AppWindow inherits Window {
                 }
 
                 Text {
+                    height: 2.5rem;
                     text: display-if-human-response(selected-job-application.human-response, selected-job-application.days-to-respond);
                     wrap: word-wrap;
                 }
@@ -195,8 +291,11 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                website-input := TextEdit {
                     text: selected-job-application.application-website;
+                    edited(text) => {
+                        selected-job-application.application-website = text;
+                    }
                     wrap: char-wrap;
                 }
             }
@@ -208,9 +307,20 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                Text {
+                notes-input := TextEdit {
                     text: selected-job-application.notes;
+                    edited(text) => {
+                        selected-job-application.notes = text;
+                    }
                     wrap: word-wrap;
+                }
+            }
+
+            Row {
+                job-application-submit := StandardButton {
+                    col: 1;
+                    height: 2rem;
+                    kind: apply;
                 }
             }
         }
@@ -218,7 +328,18 @@ export component AppWindow inherits Window {
         // The table
         StandardTableView {
             current-row-changed(current-row) => {
+                // Call the backend code to change the sidebar
                 use-job-application(table-rows[current-row][0].text.to-float());
+
+                // After an input is changed by the user, the binding with the selected-job-application is lost.
+                // So, we need to update everything to the new row manually
+                source-input.text = selected-job-application.source;
+                company-input.text = selected-job-application.company;
+                job-title-input.text = selected-job-application.job-title;
+                time-investment-input.text = selected-job-application.time-investment;
+                human-response-input.current-value = human-response-to-string(selected-job-application.human-response);
+                website-input.text = selected-job-application.application-website;
+                notes-input.text = selected-job-application.notes;
             }
             width: 80%;
             height: 100%;
