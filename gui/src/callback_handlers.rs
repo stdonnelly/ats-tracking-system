@@ -5,6 +5,11 @@ use mysql::prelude::Queryable;
 use repository::job_application_repository::get_job_application_by_id;
 use slint::ComponentHandle;
 
+// Public functions
+
+/// Handle the callback for `use-job-application`
+/// 
+/// Sets the sidebar job application to the job application that corresponds to the given ID.
 pub fn handle_use_job_application<C, Q>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
 where
     C: Queryable + AsMut<Q> + 'static,
@@ -26,15 +31,9 @@ where
     });
 }
 
-fn select_row<C: Queryable>(conn: &mut C, ui: AppWindow, application_id: i32) {
-    match get_job_application_by_id(conn, application_id) {
-        // Put job application into selected-job-application
-        Ok(Some(ja)) => ui.set_selected_job_application(ja.into()),
-        Ok(None) => eprintln!("No job application matches id {application_id}"),
-        Err(error) => eprintln!("{error}"),
-    };
-}
-
+/// Handle the callback for `submit-job-application`
+/// 
+/// Creates or updates the job application on the sidebar into the database
 pub fn handle_submit_job_application(ui: &AppWindow) {
     let ui_clone = ui.as_weak();
 
@@ -47,6 +46,44 @@ pub fn handle_submit_job_application(ui: &AppWindow) {
             eprintln!("Error submitting job application: AppWindow no longer exists");
         }
     });
+}
+
+/// Handle the callback for `new-job-application`
+/// 
+/// Clears the selected job application and sets the application date to now
+pub fn handle_new_job_application(ui: &AppWindow) {
+    let ui_clone = ui.as_weak();
+
+    ui.on_new_job_application(move || {
+        if let Some(ui) = ui_clone.upgrade() {
+            ui.set_selected_job_application(JobApplicationView {
+                // Application date should be today
+                application_date: time::OffsetDateTime::now_local()
+                    .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+                    .date()
+                    .into(),
+                // Default for everything else is find
+                // Important defaults:
+                // - id = 0: Necessary because this is what `handle_submit_job_application(...)` uses to mean create instead of update.
+                // - human_response = None
+                // - strings are ""
+                ..JobApplicationView::default()
+            });
+        } else {
+            eprintln!("Error clearing job application: AppWindow no longer exists");
+        }
+    });
+}
+
+// Helper functions
+
+fn select_row<C: Queryable>(conn: &mut C, ui: AppWindow, application_id: i32) {
+    match get_job_application_by_id(conn, application_id) {
+        // Put job application into selected-job-application
+        Ok(Some(ja)) => ui.set_selected_job_application(ja.into()),
+        Ok(None) => eprintln!("No job application matches id {application_id}"),
+        Err(error) => eprintln!("{error}"),
+    };
 }
 
 #[cfg(debug_assertions)]

@@ -21,13 +21,17 @@ export struct JobApplicationView {
 }
 
 export component AppWindow inherits Window {
+    // Callbacks
     callback use-job-application(int);
     callback submit-job-application <=> job-application-submit.clicked;
+    callback new-job-application();
     
+    // Properties
     // Might need to be in-out if we will store 
     in property <[[StandardListViewItem]]> table-rows;
     in-out property <JobApplicationView> selected-job-application;
 
+    // Functions
     pure function human-response-to-string(hr: HumanResponseView) -> string {
         if (hr == HumanResponseView.None) {
             "No response yet"
@@ -60,10 +64,32 @@ export component AppWindow inherits Window {
         }
     }
 
+    pure function display-if-nonzero(n: int) -> string {
+        if (n != 0) {
+            n
+        } else {
+            ""
+        }
+    }
+
+    // After an input is changed by the user, the binding with the selected-job-application is lost.
+    // So, we need to update everything to the new row manually
+    function re-bind-selected() {
+        source-input.text = selected-job-application.source;
+        company-input.text = selected-job-application.company;
+        job-title-input.text = selected-job-application.job-title;
+        time-investment-input.text = selected-job-application.time-investment;
+        human-response-input.current-value = human-response-to-string(selected-job-application.human-response);
+        website-input.text = selected-job-application.application-website;
+        notes-input.text = selected-job-application.notes;
+    }
+
+    // Properties of the window
     preferred-width: 1024px;
     preferred-height: 512px;
-
     title: "ATS Tracking System";
+
+    // Sidebar and table
     HorizontalLayout {
         width: 100%;
 
@@ -84,7 +110,7 @@ export component AppWindow inherits Window {
 
                 Text {
                     height: 2rem;
-                    text: selected-job-application.id;
+                    text: display-if-nonzero(selected-job-application.id);
                     wrap: word-wrap;
                 }
             }
@@ -317,8 +343,17 @@ export component AppWindow inherits Window {
             }
 
             Row {
+                job-application-new := Button {
+                    height: 2rem;
+                    text: "New";
+                    clicked => {
+                        // Call the backend code to change the sidebar
+                        new-job-application();
+                        re-bind-selected();
+                    }
+                }
+
                 job-application-submit := StandardButton {
-                    col: 1;
                     height: 2rem;
                     kind: apply;
                 }
@@ -330,16 +365,7 @@ export component AppWindow inherits Window {
             current-row-changed(current-row) => {
                 // Call the backend code to change the sidebar
                 use-job-application(table-rows[current-row][0].text.to-float());
-
-                // After an input is changed by the user, the binding with the selected-job-application is lost.
-                // So, we need to update everything to the new row manually
-                source-input.text = selected-job-application.source;
-                company-input.text = selected-job-application.company;
-                job-title-input.text = selected-job-application.job-title;
-                time-investment-input.text = selected-job-application.time-investment;
-                human-response-input.current-value = human-response-to-string(selected-job-application.human-response);
-                website-input.text = selected-job-application.application-website;
-                notes-input.text = selected-job-application.notes;
+                re-bind-selected();
             }
             width: 80%;
             height: 100%;
