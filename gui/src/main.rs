@@ -3,7 +3,7 @@
 
 use std::{cell::RefCell, error::Error, rc::Rc};
 
-use callback_handlers::{handle_new_job_application, handle_submit_job_application, handle_use_job_application};
+use callback_handlers::{handle_date_diff, handle_new_job_application, handle_submit_job_application, handle_use_job_application};
 use dotenv::dotenv;
 use repository::{
     job_application_model::JobApplication, job_application_repository::get_job_applications,
@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     handle_use_job_application(&conn, &ui);
     handle_submit_job_application(&ui);
     handle_new_job_application(&ui);
+    handle_date_diff(&ui);
 
     // Finally, run the UI
     ui.run()?;

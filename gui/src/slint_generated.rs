@@ -3,6 +3,7 @@
 //! This also implements `From<>` for some objects
 
 use repository::job_application_model::{HumanResponse, JobApplication};
+use time::{error::ComponentRange, Month};
 
 // Slint macro to include all generated code for the Slint UI
 // This automatically applies `pub use` to all necessary objects as well.
@@ -15,6 +16,28 @@ impl From<time::Date> for Date {
             month: value.month() as i32,
             year: value.year(),
         }
+    }
+}
+
+impl TryFrom<Date> for time::Date {
+    type Error = ComponentRange;
+
+    fn try_from(value: Date) -> Result<Self, Self::Error> {
+        // Safely convert month and day to u8
+        // If outside the range of u8, this will just set them to the max, which will cause a ComponentRange error
+        let month_u8 = if 0 <= value.month && value.month <= u8::MAX as i32 {
+            value.month as u8
+        } else {
+            u8::MAX
+        };
+        let day_u8 = if 0 <= value.day && value.day <= u8::MAX as i32 {
+            value.day as u8
+        } else {
+            u8::MAX
+        };
+
+        Month::try_from(month_u8)
+            .and_then(|month| time::Date::from_calendar_date(value.year, month, day_u8))
     }
 }
 
@@ -34,13 +57,6 @@ impl From<JobApplication> for JobApplicationView {
             human_response_date: value
                 .human_response_date
                 .map(Into::into)
-                .unwrap_or_default(),
-            days_to_respond: value
-                .human_response_date
-                .map(|resp_date: time::Date| {
-                    let duration_between_dates = resp_date - value.application_date;
-                    duration_between_dates.whole_days() as i32
-                })
                 .unwrap_or_default(),
             application_website: value
                 .application_website

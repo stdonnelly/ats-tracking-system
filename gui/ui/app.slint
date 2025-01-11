@@ -15,7 +15,6 @@ export struct JobApplicationView {
     time-investment: string,
     human-response: HumanResponseView,
     human-response-date: Date,
-    days-to-respond: int,
     application-website: string,
     notes: string,
 }
@@ -25,6 +24,7 @@ export component AppWindow inherits Window {
     callback use-job-application(int);
     callback submit-job-application <=> job-application-submit.clicked;
     callback new-job-application();
+    pure callback date-diff(Date, Date) -> int;
     
     // Properties
     // Might need to be in-out if we will store 
@@ -305,7 +305,7 @@ export component AppWindow inherits Window {
 
                 Text {
                     height: 2.5rem;
-                    text: display-if-human-response(selected-job-application.human-response, selected-job-application.days-to-respond);
+                    text: display-if-human-response(selected-job-application.human-response, date-diff(selected-job-application.application-date, selected-job-application.human-response-date));
                     wrap: word-wrap;
                 }
             }

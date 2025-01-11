@@ -1,5 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
+use crate::slint_generated;
+
 use super::slint_generated::{AppWindow, JobApplicationView};
 use mysql::prelude::Queryable;
 use repository::job_application_repository::get_job_application_by_id;
@@ -8,7 +10,7 @@ use slint::ComponentHandle;
 // Public functions
 
 /// Handle the callback for `use-job-application`
-/// 
+///
 /// Sets the sidebar job application to the job application that corresponds to the given ID.
 pub fn handle_use_job_application<C, Q>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
 where
@@ -32,7 +34,7 @@ where
 }
 
 /// Handle the callback for `submit-job-application`
-/// 
+///
 /// Creates or updates the job application on the sidebar into the database
 pub fn handle_submit_job_application(ui: &AppWindow) {
     let ui_clone = ui.as_weak();
@@ -49,7 +51,7 @@ pub fn handle_submit_job_application(ui: &AppWindow) {
 }
 
 /// Handle the callback for `new-job-application`
-/// 
+///
 /// Clears the selected job application and sets the application date to now
 pub fn handle_new_job_application(ui: &AppWindow) {
     let ui_clone = ui.as_weak();
@@ -71,6 +73,36 @@ pub fn handle_new_job_application(ui: &AppWindow) {
             });
         } else {
             eprintln!("Error clearing job application: AppWindow no longer exists");
+        }
+    });
+}
+
+/// Handle the callback for `date-diff`
+///
+/// Returns the difference between two dates in days (to - from)
+pub fn handle_date_diff(ui: &AppWindow) {
+    ui.on_date_diff(|from: slint_generated::Date, to: slint_generated::Date| -> i32 {
+        // Ignore invocations where one or both dates are 0/0/0
+        if to == slint_generated::Date::default() || from == slint_generated::Date::default() {
+            return 0;
+        }
+
+        // Only try if both can be converted
+        match (time::Date::try_from(from), time::Date::try_from(to)) {
+            (Ok(from_date), Ok(to_date)) => {
+                let duration = to_date - from_date;
+                duration.whole_days() as i32
+            }
+            // Both error arms will just return 0.
+            // It would probably be best to display some error in the future
+            (Err(error), _) => {
+                eprintln!("Error parsing the 'from' date in difference: {error}");
+                0
+            }
+            (_, Err(error)) => {
+                eprintln!("Error parsing the 'to' date in difference: {error}");
+                0
+            }
         }
     });
 }
@@ -97,7 +129,6 @@ Application date: {:?}
 Time investment: {}
 Human response: {:?}
 Human response date: {:?}
-Days to respond: {}
 Application website: {}
 Notes: {}",
         job_application_view.id,                  //: int,
@@ -108,7 +139,6 @@ Notes: {}",
         job_application_view.time_investment,     //: string,
         job_application_view.human_response,      //: HumanResponseView,
         job_application_view.human_response_date, //: Date,
-        job_application_view.days_to_respond,     //: int,
         job_application_view.application_website, //: string,
         job_application_view.notes,               //: string,
     );
