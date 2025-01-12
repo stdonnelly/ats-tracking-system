@@ -31,7 +31,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     // Set up callbacks
     handle_use_job_application(&conn, &ui);
-    handle_submit_job_application(&ui);
+    handle_submit_job_application(&conn, &ui);
     handle_new_job_application(&ui);
     handle_date_diff(&ui);
 

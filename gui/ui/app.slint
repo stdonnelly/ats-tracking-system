@@ -12,7 +12,7 @@ export struct JobApplicationView {
     company: string,
     job-title: string,
     application-date: Date,
-    time-investment: string,
+    time-investment: int,
     human-response: HumanResponseView,
     human-response-date: Date,
     application-website: string,
@@ -78,7 +78,8 @@ export component AppWindow inherits Window {
         source-input.text = selected-job-application.source;
         company-input.text = selected-job-application.company;
         job-title-input.text = selected-job-application.job-title;
-        time-investment-input.text = selected-job-application.time-investment;
+        time-investment-min.text = floor(selected-job-application.time-investment / 60);
+        time-investment-sec.text = mod(selected-job-application.time-investment, 60);
         human-response-input.current-value = human-response-to-string(selected-job-application.human-response);
         website-input.text = selected-job-application.application-website;
         notes-input.text = selected-job-application.notes;
@@ -223,13 +224,44 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                 }
 
-                time-investment-input := LineEdit {
-                    height: 2.5rem;
-                    text: selected-job-application.time-investment;
-                    edited(text) => {
-                        selected-job-application.time-investment = text;
+                // Custom time input using a horizontal layout of `LineEdit`s
+                HorizontalLayout {
+                    // This is used to update the selected job application after text edit changes
+                    function store-time() {
+                        selected-job-application.time-investment = (time-investment-min.text.to-float() * 60) + time-investment-sec.text.to-float();
+
+                        // Go back to the fields. This will normalize the seconds.
+                        time-investment-min.text = floor(selected-job-application.time-investment / 60);
+                        time-investment-sec.text = mod(selected-job-application.time-investment, 60);
                     }
-                    // wrap: word-wrap;
+
+                    time-investment-min := LineEdit {
+                        // Set the `min-width` of these to 0.
+                        // This is just to override the default `min-width` for `LineEdit`, preventing this from growing the column more than it needs to.
+                        // The width will end up being (column width - " : ") / 2
+                        min-width: 0;
+                        height: 2.5rem;
+                        text: floor(selected-job-application.time-investment / 60);
+                        input-type: number;
+                        edited(_) => {
+                            store-time();
+                        }
+                    }
+
+                    Text {
+                        text: " : ";
+                        vertical-alignment: center;
+                    }
+
+                    time-investment-sec := LineEdit {
+                        min-width: 0;
+                        height: 2.5rem;
+                        text: mod(selected-job-application.time-investment, 60);
+                        input-type: number;
+                        edited(_) => {
+                            store-time();
+                        }
+                    }
                 }
             }
 
