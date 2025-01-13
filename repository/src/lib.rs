@@ -1,22 +1,14 @@
 use std::env;
 
-use dotenv::dotenv;
 use mysql::{OptsBuilder, Pool, PooledConn};
-use user_interface::command_line;
 
-mod repository;
-mod user_interface;
+pub mod job_application_model;
+pub mod job_application_repository;
 
-fn main() {
-    // Objects that should be owned by the main function
-    dotenv().unwrap();
-    let mut conn = get_conn().unwrap();
-
-    command_line::main_loop(&mut conn).unwrap();
-}
-
-/// Boilerplate for getting connection information from environment
-fn get_conn() -> Result<PooledConn, mysql::Error> {
+/// Get a connection object to be used by the rest of this crate
+///
+/// This exists so that the main function can own the connection object instead of creating a new one for every call
+pub fn get_conn() -> Result<PooledConn, mysql::Error> {
     let mut sql_opts_builder = OptsBuilder::new();
     if let Ok(host_name) = env::var("DB_HOST") {
         sql_opts_builder = sql_opts_builder.ip_or_hostname(Some(host_name));

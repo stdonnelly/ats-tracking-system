@@ -1,0 +1,421 @@
+import { StandardTableView, StandardListView, ListView, Date, LineEdit, ComboBox, TextEdit, Button, StandardButton, Palette, DatePickerPopup } from "std-widgets.slint";
+
+export enum HumanResponseView {
+    None,
+    Rejection,
+    InterviewRequest,
+}
+
+export struct JobApplicationView {
+    id: int,
+    source: string,
+    company: string,
+    job-title: string,
+    application-date: Date,
+    time-investment: int,
+    human-response: HumanResponseView,
+    human-response-date: Date,
+    application-website: string,
+    notes: string,
+}
+
+export component AppWindow inherits Window {
+    // Callbacks
+    callback use-job-application(int);
+    callback submit-job-application <=> job-application-submit.clicked;
+    callback new-job-application();
+    pure callback date-diff(Date, Date) -> int;
+    
+    // Properties
+    // Might need to be in-out if we will store 
+    in-out property <[[StandardListViewItem]]> table-rows;
+    in-out property <JobApplicationView> selected-job-application;
+
+    // Functions
+    pure function human-response-to-string(hr: HumanResponseView) -> string {
+        if (hr == HumanResponseView.None) {
+            "No response yet"
+        } else if (hr == HumanResponseView.Rejection) {
+            "Rejection"
+        } else if (hr == HumanResponseView.InterviewRequest) {
+            "Interview request"
+        } else {
+            "ERROR"
+        }
+    }
+
+    pure function string-to-human-response(s: string) -> HumanResponseView {
+        if (s == "Rejection") {
+            HumanResponseView.Rejection;
+        } else if (s == "Interview request") {
+            HumanResponseView.InterviewRequest;
+        } else {
+            // Fallback to None if None or not recognized
+            HumanResponseView.None;
+        }
+    }
+
+    // Use `s` if `hr` is not None, otherwise use an empty string
+    pure function display-if-human-response(hr: HumanResponseView, s: string) -> string {
+        if (hr != HumanResponseView.None) {
+            s
+        } else {
+            ""
+        }
+    }
+
+    pure function display-if-nonzero(n: int) -> string {
+        if (n != 0) {
+            n
+        } else {
+            ""
+        }
+    }
+
+    // After an input is changed by the user, the binding with the selected-job-application is lost.
+    // So, we need to update everything to the new row manually
+    public function re-bind-selected() {
+        source-input.text = selected-job-application.source;
+        company-input.text = selected-job-application.company;
+        job-title-input.text = selected-job-application.job-title;
+        time-investment-min.text = floor(selected-job-application.time-investment / 60);
+        time-investment-sec.text = mod(selected-job-application.time-investment, 60);
+        human-response-input.current-value = human-response-to-string(selected-job-application.human-response);
+        website-input.text = selected-job-application.application-website;
+        notes-input.text = selected-job-application.notes;
+    }
+
+    // Properties of the window
+    preferred-width: 1024px;
+    preferred-height: 512px;
+    title: "ATS Tracking System";
+
+    // Sidebar and table
+    HorizontalLayout {
+        width: 100%;
+
+        // Left sidebar that displays all information about the currently selected element
+        GridLayout {
+            width: 20%;
+            spacing: 5px;
+            padding: 5px;
+            Row {
+                Text {
+                    text: "ID";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                    // This sets the minimum width for this entire column.
+                    // This is necessary because slint sometimes displays the second column over this one instead of just causing the second column to wrap.
+                    min-width: 6rem;
+                }
+
+                Text {
+                    height: 2rem;
+                    text: display-if-nonzero(selected-job-application.id);
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Source";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                source-input := LineEdit {
+                    height: 2.5rem;
+                    text: selected-job-application.source;
+                    edited(text) => {
+                        selected-job-application.source = text;
+                    }
+                    // wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Company";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                company-input := LineEdit {
+                    height: 2.5rem;
+                    text: selected-job-application.company;
+                    edited(text) => {
+                        selected-job-application.company = text;
+                    }
+                    // wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Job Title";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                job-title-input := LineEdit {
+                    height: 2.5rem;
+                    text: selected-job-application.job-title;
+                    edited(text) => {
+                        selected-job-application.job-title = text;
+                    }
+                    // wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Application Date";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                // Date inputs will be LineEdit to make sure formatting is consistent with the actual text inputs.
+                // But the text editing is actually disabled and clicking on the element will bring up a date picker popup
+                application-date-input := LineEdit {
+                    height: 2.5rem;
+                    text: @tr(
+                    "{}/{}/{}",
+                    selected-job-application.application-date.month,
+                    selected-job-application.application-date.day,
+                    selected-job-application.application-date.year);
+                    // wrap: word-wrap;
+                    read-only: true;
+
+                    // Use the `has-focus` property as a pseudo `clicked` callback
+                    changed has-focus => {
+                        if (self.has-focus) {
+                            application-date-picker.show();
+                        }
+                    }
+                }
+
+                application-date-picker := DatePickerPopup {
+                    title: "Application Date";
+                    // Change to this when Slint is updated
+                    close-policy: no-auto-close;
+                    // close-on-click: false;
+                    canceled() => {
+                        // Close this
+                        application-date-picker.close();
+                        // Clear the focus on the input field.
+                        // This is done because the date picker is only activated when `application-date-input` focus changes.
+                        // If the focus is not cleared, subsequent clicks of the same field would not change the focus.
+                        application-date-input.clear-focus();
+                    }
+                    accepted(date) => {
+                        // Update the application date. This is enough because `@tr()` automatically updates and the binding is never lost.
+                        selected-job-application.application-date = date;
+                        // See the comments on these in `cancelled()`
+                        application-date-picker.close();
+                        application-date-input.clear-focus();
+                    }
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Time Taken";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                // Custom time input using a horizontal layout of `LineEdit`s
+                HorizontalLayout {
+                    // This is used to update the selected job application after text edit changes
+                    function store-time() {
+                        selected-job-application.time-investment = (time-investment-min.text.to-float() * 60) + time-investment-sec.text.to-float();
+
+                        // Go back to the fields. This will normalize the seconds.
+                        time-investment-min.text = floor(selected-job-application.time-investment / 60);
+                        time-investment-sec.text = mod(selected-job-application.time-investment, 60);
+                    }
+
+                    time-investment-min := LineEdit {
+                        // Set the `min-width` of these to 0.
+                        // This is just to override the default `min-width` for `LineEdit`, preventing this from growing the column more than it needs to.
+                        // The width will end up being (column width - " : ") / 2
+                        min-width: 0;
+                        height: 2.5rem;
+                        text: floor(selected-job-application.time-investment / 60);
+                        input-type: number;
+                        edited(_) => {
+                            store-time();
+                        }
+                    }
+
+                    Text {
+                        text: " : ";
+                        vertical-alignment: center;
+                    }
+
+                    time-investment-sec := LineEdit {
+                        min-width: 0;
+                        height: 2.5rem;
+                        text: mod(selected-job-application.time-investment, 60);
+                        input-type: number;
+                        edited(_) => {
+                            store-time();
+                        }
+                    }
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Human Response";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                human-response-input := ComboBox {
+                    height: 2.5rem;
+                    // text: human-response-to-string(selected-job-application.human-response);
+                    model: ["No response yet", "Rejection", "Interview request"];
+                    current-value: human-response-to-string(selected-job-application.human-response);
+                    selected(value) => {
+                        selected-job-application.human-response = string-to-human-response(value);
+                    }
+                    // wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Response Date";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                // Very similar to `application-date-input` and `application-data-picker`.
+                // See the comments on them for a more detailed explanation of this.
+                response-date-input := LineEdit {
+                    height: 2.5rem;
+                    text: display-if-human-response(selected-job-application.human-response, @tr(
+                            "{}/{}/{}",
+                            selected-job-application.human-response-date.month,
+                            selected-job-application.human-response-date.day,
+                            selected-job-application.human-response-date.year));
+                    read-only: true;
+                    // wrap: word-wrap;
+
+                    // Use the `has-focus` property as a pseudo `clicked` callback
+                    changed has-focus => {
+                        if (self.has-focus) {
+                            response-date-picker.show();
+                        }
+                    }
+                }
+
+                response-date-picker := DatePickerPopup {
+                    title: "Response Date";
+                    // Change to this when Slint is updated
+                    close-policy: no-auto-close;
+                    // close-on-click: false;
+                    canceled() => {
+                        response-date-picker.close();
+                        response-date-input.clear-focus();
+                    }
+                    accepted(date) => {
+                        selected-job-application.human-response-date = date;
+                        response-date-picker.close();
+                        response-date-input.clear-focus();
+                    }
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Days to Respond";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                Text {
+                    height: 2.5rem;
+                    text: display-if-human-response(selected-job-application.human-response, date-diff(selected-job-application.application-date, selected-job-application.human-response-date));
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Website";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                website-input := TextEdit {
+                    text: selected-job-application.application-website;
+                    edited(text) => {
+                        selected-job-application.application-website = text;
+                    }
+                    wrap: char-wrap;
+                }
+            }
+
+            Row {
+                Text {
+                    text: "Notes";
+                    font-weight: 700;
+                    wrap: word-wrap;
+                }
+
+                notes-input := TextEdit {
+                    text: selected-job-application.notes;
+                    edited(text) => {
+                        selected-job-application.notes = text;
+                    }
+                    wrap: word-wrap;
+                }
+            }
+
+            Row {
+                job-application-new := Button {
+                    height: 2rem;
+                    text: "New";
+                    clicked => {
+                        // Call the backend code to change the sidebar
+                        new-job-application();
+                        re-bind-selected();
+                    }
+                }
+
+                job-application-submit := StandardButton {
+                    height: 2rem;
+                    kind: apply;
+                }
+            }
+        }
+
+        // The table
+        StandardTableView {
+            current-row-changed(current-row) => {
+                // Call the backend code to change the sidebar
+                use-job-application(table-rows[current-row][0].text.to-float());
+                re-bind-selected();
+            }
+            width: 80%;
+            height: 100%;
+            columns: [
+                // Column titles have manually added newlines because there is no automatic word-wrap for column titles
+                { title: "ID", min-width: 4rem },
+                { title: "Source", min-width: 6rem },
+                { title: "Company", min-width: 7rem },
+                { title: "Job Title", min-width: 7rem },
+                { title: "Application\nDate", min-width: 7rem },
+                { title: "Time\nTaken", min-width: 5rem },
+                { title: "Human\nResponse", min-width: 10rem },
+                { title: "Date", min-width: 7rem },
+                { title: "Days to\nRespond", min-width: 7rem },
+                { title: "Website", min-width: 7rem },
+                { title: "Notes", min-width: 5rem },
+            ];
+            rows: table-rows;
+        }
+    }
+}

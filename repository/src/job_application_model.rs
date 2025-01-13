@@ -29,6 +29,7 @@ pub struct JobApplication {
 impl Into<Params> for &JobApplication {
     fn into(self) -> Params {
         params! {
+            "id" => &self.id,
             "source" => &self.source,
             "company" => &self.company,
             "job_title" => &self.job_title,

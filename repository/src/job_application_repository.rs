@@ -91,11 +91,31 @@ pub fn update_human_response<C: Queryable>(
     )
 }
 
+pub fn update_job_application<C: Queryable>(
+    conn: &mut C,
+    application: &JobApplication,
+) -> Result<(), mysql::Error> {
+    conn.exec_drop(
+        "UPDATE job_applications
+        SET source = :source,
+        company = :company,
+        job_title = :job_title,
+        application_date = :application_date,
+        time_investment = :time_investment,
+        human_response = :human_response,
+        human_response_date = :human_response_date,
+        application_website = :application_website,
+        notes = :notes
+        WHERE id = :id",
+        application,
+    )
+}
+
 /// Update a job application, returning the updated application.
 ///
 /// `id` is used to determine what application to overwrite.
 /// If there is no application with that id, nothing will be changed in the database and an error will be returned
-pub fn update_job_application<C: Queryable>(
+pub fn update_job_application_partial<C: Queryable>(
     conn: &mut C,
     partial_application: PartialJobApplication,
 ) -> Result<(), mysql::Error> {
