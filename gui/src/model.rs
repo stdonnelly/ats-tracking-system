@@ -55,7 +55,7 @@ impl From<JobApplication> for JobApplicationView {
             human_response_date: value
                 .human_response_date
                 .map(Into::into)
-                .unwrap_or_default(),
+                .unwrap_or_else(get_today_as_slint_date),
             application_website: value
                 .application_website
                 .as_deref()
@@ -116,4 +116,12 @@ impl From<HumanResponseView> for HumanResponse {
             HumanResponseView::InterviewRequest => Self::InterviewRequest,
         }
     }
+}
+
+/// Get today as a slint struct Date
+pub fn get_today_as_slint_date() -> Date {
+    time::OffsetDateTime::now_local()
+        .unwrap_or_else(|_| time::OffsetDateTime::now_utc())
+        .date()
+        .into()
 }

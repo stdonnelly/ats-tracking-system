@@ -28,7 +28,7 @@ export component AppWindow inherits Window {
     
     // Properties
     // Might need to be in-out if we will store 
-    in property <[[StandardListViewItem]]> table-rows;
+    in-out property <[[StandardListViewItem]]> table-rows;
     in-out property <JobApplicationView> selected-job-application;
 
     // Functions
@@ -74,7 +74,7 @@ export component AppWindow inherits Window {
 
     // After an input is changed by the user, the binding with the selected-job-application is lost.
     // So, we need to update everything to the new row manually
-    function re-bind-selected() {
+    public function re-bind-selected() {
         source-input.text = selected-job-application.source;
         company-input.text = selected-job-application.company;
         job-title-input.text = selected-job-application.job-title;
