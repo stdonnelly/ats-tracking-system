@@ -3,16 +3,19 @@
 
 use std::{cell::RefCell, error::Error, rc::Rc};
 
-use callback_handlers::{handle_date_diff, handle_new_job_application, handle_submit_job_application, handle_use_job_application};
+use controller::{
+    handle_date_diff, handle_new_job_application, handle_submit_job_application,
+    handle_use_job_application,
+};
 use dotenv::dotenv;
 use repository::{
     job_application_model::JobApplication, job_application_repository::get_job_applications,
 };
 use slint::{ComponentHandle, ModelRc, StandardListViewItem, VecModel};
 
-mod slint_generated;
-use slint_generated::AppWindow;
-mod callback_handlers;
+mod model;
+use model::AppWindow;
+mod controller;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Objects that should be owned by the main function

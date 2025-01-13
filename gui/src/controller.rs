@@ -1,8 +1,6 @@
 use std::{cell::RefCell, rc::Rc};
 
-use crate::slint_generated;
-
-use super::slint_generated::{AppWindow, JobApplicationView};
+use crate::model::{self, AppWindow, JobApplicationView};
 use mysql::prelude::Queryable;
 use repository::{
     job_application_model::JobApplication,
@@ -95,32 +93,30 @@ pub fn handle_new_job_application(ui: &AppWindow) {
 ///
 /// Returns the difference between two dates in days (to - from)
 pub fn handle_date_diff(ui: &AppWindow) {
-    ui.on_date_diff(
-        |from: slint_generated::Date, to: slint_generated::Date| -> i32 {
-            // Ignore invocations where one or both dates are 0/0/0
-            if to == slint_generated::Date::default() || from == slint_generated::Date::default() {
-                return 0;
-            }
+    ui.on_date_diff(|from: model::Date, to: model::Date| -> i32 {
+        // Ignore invocations where one or both dates are 0/0/0
+        if to == model::Date::default() || from == model::Date::default() {
+            return 0;
+        }
 
-            // Only try if both can be converted
-            match (time::Date::try_from(from), time::Date::try_from(to)) {
-                (Ok(from_date), Ok(to_date)) => {
-                    let duration = to_date - from_date;
-                    duration.whole_days() as i32
-                }
-                // Both error arms will just return 0.
-                // It would probably be best to display some error in the future
-                (Err(error), _) => {
-                    eprintln!("Error parsing the 'from' date in difference: {error}");
-                    0
-                }
-                (_, Err(error)) => {
-                    eprintln!("Error parsing the 'to' date in difference: {error}");
-                    0
-                }
+        // Only try if both can be converted
+        match (time::Date::try_from(from), time::Date::try_from(to)) {
+            (Ok(from_date), Ok(to_date)) => {
+                let duration = to_date - from_date;
+                duration.whole_days() as i32
             }
-        },
-    );
+            // Both error arms will just return 0.
+            // It would probably be best to display some error in the future
+            (Err(error), _) => {
+                eprintln!("Error parsing the 'from' date in difference: {error}");
+                0
+            }
+            (_, Err(error)) => {
+                eprintln!("Error parsing the 'to' date in difference: {error}");
+                0
+            }
+        }
+    });
 }
 
 // Helper functions
