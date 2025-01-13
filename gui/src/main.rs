@@ -1,3 +1,7 @@
+//! Entry point for the GUI version of ats-tracking
+//! 
+//! This crate uses Slint for a GUI.
+
 // Some workaround for windows that was in the project template
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 

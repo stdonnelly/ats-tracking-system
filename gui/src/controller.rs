@@ -1,3 +1,5 @@
+//! Controller functionality to handle actions triggered by or affecting the GUI
+
 use std::{cell::RefCell, iter::once, rc::Rc};
 
 use crate::model::{self, get_today_as_slint_date, AppWindow, JobApplicationView};
