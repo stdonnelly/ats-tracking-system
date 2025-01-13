@@ -15,7 +15,7 @@ use repository::{
     job_application_repository::{
         delete_job_application, get_job_application_by_id, get_job_applications,
         get_pending_job_applications, insert_job_application, search_job_applications,
-        update_human_response, update_job_application,
+        update_human_response, update_job_application_partial,
     },
 };
 
@@ -508,7 +508,7 @@ fn update_other_command<C: Queryable>(
         // Add the ID of the job application to modify
         partial_application.0.push(JobApplicationField::Id(id));
         // For confirmation, print the returned job application
-        update_job_application(conn, partial_application)?;
+        update_job_application_partial(conn, partial_application)?;
         // print_job_application_to_terminal(&new_job_application);
 
         Ok(())
