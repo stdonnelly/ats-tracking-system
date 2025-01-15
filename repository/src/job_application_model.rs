@@ -14,15 +14,25 @@ use time::{Date, Duration};
 #[derive(Debug, Clone, FromRow, PartialEq, Eq)]
 #[mysql(table_name = "job_applications")]
 pub struct JobApplication {
+    /// The table primary key
     pub id: i32,
+    /// LinkedIn, Indeed, referral, etc
     pub source: String,
+    /// The company that is hiring
     pub company: String,
+    /// The job title
     pub job_title: String,
+    /// When the user initially sent an application
     pub application_date: Date,
+    /// The amount of time the user spent filling out the application
     pub time_investment: Option<Duration>,
+    /// The response that was given, if the employer has responded
     pub human_response: HumanResponse,
+    /// The date that the above response was given
     pub human_response_date: Option<Date>,
+    /// A URL for the application website, if applicable (i.e. not easy apply)
     pub application_website: Option<String>,
+    /// Notes on anything notable about the application process or company
     pub notes: Option<String>,
 }
 
@@ -46,9 +56,12 @@ impl Into<Params> for &JobApplication {
 /// Enum to hold possible human responses
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum HumanResponse {
+    /// No response yet
     #[default]
     None,
+    /// The company rejected the user's application
     Rejection,
+    /// The company requested an interview
     InterviewRequest,
 }
 
@@ -101,15 +114,25 @@ impl FromValue for HumanResponse {
 
 /// Field in a JobApplication to allow the creation of partial job applications
 pub enum JobApplicationField {
+    /// The table primary key
     Id(i32),
+    /// LinkedIn, Indeed, referral, etc
     Source(String),
+    /// The company that is hiring
     Company(String),
+    /// The job title
     JobTitle(String),
+    /// When the user initially sent an application
     ApplicationDate(Date),
+    /// The amount of time the user spent filling out the application
     TimeInvestment(Option<Duration>),
+    /// The response that was given, if the employer has responded
     HumanResponse(HumanResponse),
+    /// The date that the above response was given
     HumanResponseDate(Option<Date>),
+    /// A URL for the application website, if applicable (i.e. not easy apply)
     ApplicationWebsite(Option<String>),
+    /// Notes on anything notable about the application process or company
     Notes(Option<String>),
 }
 
