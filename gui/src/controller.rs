@@ -3,13 +3,8 @@
 use std::{cell::RefCell, iter::once, rc::Rc};
 
 use crate::model::{self, get_today_as_slint_date, AppWindow, JobApplicationView};
-use mysql::prelude::Queryable;
 use repository::{
-    job_application_model::JobApplication,
-    job_application_repository::{
-        get_job_application_by_id, get_job_applications, insert_job_application,
-        update_job_application,
-    },
+    job_application_model::JobApplication, job_application_repository::JobApplicationRepository,
 };
 use slint::{ComponentHandle, Model, ModelRc, StandardListViewItem, ToSharedString, VecModel};
 
@@ -18,10 +13,10 @@ use slint::{ComponentHandle, Model, ModelRc, StandardListViewItem, ToSharedStrin
 /// Initialize the data in the ui
 ///
 /// Populates table and resets sidebar.
-pub fn init_ui<C: Queryable>(conn: &mut C, ui: &AppWindow) {
+pub fn init_ui<C: JobApplicationRepository>(conn: &mut C, ui: &AppWindow) {
     // Get job applications
     let all_applications: Vec<JobApplication> =
-        get_job_applications(conn).unwrap_or_else(|error| {
+        conn.get_job_applications().unwrap_or_else(|error| {
             // If get_job_applications produces an error, print that there was an error, then just use an empty Vec
             eprintln!("Error getting initial state of job applications table: {error}");
             Vec::default()
@@ -47,8 +42,8 @@ pub fn init_ui<C: Queryable>(conn: &mut C, ui: &AppWindow) {
 /// Sets the sidebar job application to the job application that corresponds to the given ID.
 pub fn handle_use_job_application<C, Q>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
 where
-    C: Queryable + AsMut<Q> + 'static,
-    Q: Queryable,
+    C: JobApplicationRepository + AsMut<Q> + 'static,
+    Q: JobApplicationRepository,
 {
     let conn_clone = Rc::clone(conn);
     let ui_clone = ui.as_weak();
@@ -71,8 +66,8 @@ where
 /// Creates or updates the job application on the sidebar into the database
 pub fn handle_submit_job_application<C, Q>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
 where
-    C: Queryable + AsMut<Q> + 'static,
-    Q: Queryable,
+    C: JobApplicationRepository + AsMut<Q> + 'static,
+    Q: JobApplicationRepository,
 {
     let conn_clone = Rc::clone(conn);
     let ui_clone = ui.as_weak();
@@ -188,8 +183,8 @@ fn job_application_into_row(ja: &JobApplication) -> ModelRc<StandardListViewItem
 }
 
 /// Set the sidebar job application to the job application denoted by `application_id`
-fn select_row<C: Queryable>(conn: &mut C, ui: AppWindow, application_id: i32) {
-    match get_job_application_by_id(conn, application_id) {
+fn select_row<C: JobApplicationRepository>(conn: &mut C, ui: AppWindow, application_id: i32) {
+    match conn.get_job_application_by_id(application_id) {
         // Put job application into selected-job-application
         Ok(Some(ja)) => ui.set_selected_job_application(ja.into()),
         Ok(None) => eprintln!("No job application matches id {application_id}"),
@@ -245,7 +240,7 @@ Notes: {}",
 /// If `job_application_view.id == 0`, an insert will be performed.
 /// Otherwise, an update to the value at `job_application_view.id` will be performed.
 /// When finished, the ui table will be updated
-fn submit_job_application<C: Queryable>(
+fn submit_job_application<C: JobApplicationRepository>(
     conn: &mut C,
     ui: &AppWindow,
     job_application_view: JobApplicationView,
@@ -264,7 +259,7 @@ fn submit_job_application<C: Queryable>(
 
     if is_new {
         // Insert
-        job_application = insert_job_application(conn, &job_application)?;
+        job_application = conn.insert_job_application(&job_application)?;
 
         // Since this is an insert, we should insert a row into the table instead of trying to edit an existing entry
         let table_rows: ModelRc<ModelRc<StandardListViewItem>> = ui.get_table_rows();
@@ -289,7 +284,7 @@ fn submit_job_application<C: Queryable>(
         }
     } else {
         // Update
-        update_job_application(conn, &job_application)?;
+        conn.update_job_application(&job_application)?;
 
         // Since this is an update, we should just update the row that contains the updated data
         let id = job_application.id;

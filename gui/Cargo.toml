@@ -11,7 +11,6 @@ path = "src/main.rs"
 
 [dependencies]
 repository = { path = "../repository" }
-mysql = "25.0.1"
 time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
 # A bug in version 1.9.0 and 1.9.1 causes the date picker widget to never close.
 slint = "1.9.2"
