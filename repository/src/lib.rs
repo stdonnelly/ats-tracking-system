@@ -1,8 +1,12 @@
+//! Job application repository with a MySQL database
+
 use std::env;
 
 use mysql::{OptsBuilder, Pool, PooledConn};
 
+/// Define `struct JobApplication` and some implement conversions between that and MySQL objects
 pub mod job_application_model;
+/// Define CRUD actions for `struct JobApplication` into the MySQL database
 pub mod job_application_repository;
 
 /// Get a connection object to be used by the rest of this crate

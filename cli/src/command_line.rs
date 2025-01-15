@@ -5,18 +5,13 @@ use std::{
     path::Path,
 };
 
-use mysql::prelude::Queryable;
 use time::{macros::format_description, Date, Duration};
 
 use repository::{
     job_application_model::{
         HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
     },
-    job_application_repository::{
-        delete_job_application, get_job_application_by_id, get_job_applications,
-        get_pending_job_applications, insert_job_application, search_job_applications,
-        update_human_response, update_job_application_partial,
-    },
+    job_application_repository::JobApplicationRepository,
 };
 
 use super::shell_option::{ReadType, ShellOption, UpdateType};
@@ -49,7 +44,7 @@ macro_rules! input_optional {
 
 /// The main loop that runs the prompt
 /// Will exit if there is an  
-pub fn main_loop<C: Queryable>(conn: &mut C) -> Result<(), io::Error> {
+pub fn main_loop<C: JobApplicationRepository>(conn: &mut C) -> Result<(), io::Error> {
     // Hold on to an stdin instance
     let stdin = stdin();
     // Temporary directory that is owned by this function
@@ -107,7 +102,7 @@ Available commands:
 }
 
 /// Prompt a user for all parts of a job application and insert the new element
-fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> {
+fn create<C: JobApplicationRepository>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> {
     // Declare the variables here to make sure I define all of them
     let source: String;
     let company: String;
@@ -221,21 +216,23 @@ fn create<C: Queryable>(conn: &mut C) -> Result<(), Box<dyn std::error::Error>> 
     };
 
     // println!("Job application: {new_application:?}");
-    insert_job_application(conn, &new_application)?;
+    conn.insert_job_application(&new_application)?;
     Ok(())
 }
 
-fn read<C: Queryable>(
+fn read<C: JobApplicationRepository>(
     conn: &mut C,
     read_type: ReadType,
     temp_dir: &Path,
 ) -> Result<(), Box<dyn std::error::Error>> {
     // Read the job application(s), depending on read type
     let applications: Vec<JobApplication> = match read_type {
-        ReadType::All => get_job_applications(conn)?,
-        ReadType::Pending => get_pending_job_applications(conn)?,
-        ReadType::Search(query) => search_job_applications(conn, &query)?,
-        ReadType::One(id) => get_job_application_by_id(conn, id)?.map_or(Vec::new(), |a| vec![a]),
+        ReadType::All => conn.get_job_applications()?,
+        ReadType::Pending => conn.get_pending_job_applications()?,
+        ReadType::Search(query) => conn.search_job_applications(&query)?,
+        ReadType::One(id) => conn
+            .get_job_application_by_id(id)?
+            .map_or(Vec::new(), |a| vec![a]),
     };
 
     match applications.len() {
@@ -295,7 +292,7 @@ Notes: {}",
 }
 
 /// Determine the update type and call the appropriate function
-fn update<C: Queryable>(
+fn update<C: JobApplicationRepository>(
     conn: &mut C,
     update_type: UpdateType,
     id: i32,
@@ -308,7 +305,7 @@ fn update<C: Queryable>(
 }
 
 /// Ask the user for the human response and update it
-fn update_human_response_command<C: Queryable>(
+fn update_human_response_command<C: JobApplicationRepository>(
     conn: &mut C,
     id: i32,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -340,13 +337,13 @@ fn update_human_response_command<C: Queryable>(
         )?);
     }
 
-    update_human_response(conn, id, human_response, human_response_date)
+    conn.update_human_response(id, human_response, human_response_date)
         // Box the error, if any
         .map_err(Box::<dyn std::error::Error>::from)
 }
 
 /// Ask the user what to update and update it
-fn update_other_command<C: Queryable>(
+fn update_other_command<C: JobApplicationRepository>(
     conn: &mut C,
     id: i32,
 ) -> Result<(), Box<dyn std::error::Error>> {
@@ -508,16 +505,19 @@ fn update_other_command<C: Queryable>(
         // Add the ID of the job application to modify
         partial_application.0.push(JobApplicationField::Id(id));
         // For confirmation, print the returned job application
-        update_job_application_partial(conn, partial_application)?;
+        conn.update_job_application_partial(partial_application)?;
         // print_job_application_to_terminal(&new_job_application);
 
         Ok(())
     }
 }
 
-fn delete<C: Queryable>(conn: &mut C, id: i32) -> Result<(), Box<dyn std::error::Error>> {
+fn delete<C: JobApplicationRepository>(
+    conn: &mut C,
+    id: i32,
+) -> Result<(), Box<dyn std::error::Error>> {
     // Check if the job application we are trying to delete actually exists
-    if let Some(job_application) = get_job_application_by_id(conn, id)? {
+    if let Some(job_application) = conn.get_job_application_by_id(id)? {
         // Print the job application so the user knows exactly what they are deleting
         print_job_application_to_terminal(&job_application);
 
@@ -526,7 +526,8 @@ fn delete<C: Queryable>(conn: &mut C, id: i32) -> Result<(), Box<dyn std::error:
             "Are you sure you want to delete this job application? [y/N]:",
             |s| Result::<bool, Infallible>::Ok(s.starts_with(&['y', 'Y'])), // Only do it if y, Y, or something that starts with y
         )? {
-            delete_job_application(conn, id).map_err(Box::<dyn std::error::Error>::from)?;
+            conn.delete_job_application(id)
+                .map_err(Box::<dyn std::error::Error>::from)?;
             println!("Successfully deleted job application {id}");
         } else {
             println!("Aborting delete");

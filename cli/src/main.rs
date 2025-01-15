@@ -1,3 +1,5 @@
+//! Entry point for the CLI version of ats-tracking
+
 use dotenv::dotenv;
 
 mod command_line;
