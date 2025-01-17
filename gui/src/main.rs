@@ -1,11 +1,11 @@
 //! Entry point for the GUI version of ats-tracking
-//! 
+//!
 //! This crate uses Slint for a GUI.
 
 // Some workaround for windows that was in the project template
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{cell::RefCell, error::Error, rc::Rc};
+use std::{cell::RefCell, error::Error, ops::DerefMut, rc::Rc};
 
 use controller::{
     handle_date_diff, handle_new_job_application, handle_submit_job_application,
@@ -25,7 +25,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let ui = AppWindow::new()?;
 
     // Set initial state
-    init_ui(RefCell::borrow_mut(&conn).as_mut(), &ui);
+    init_ui(RefCell::borrow_mut(&conn).deref_mut(), &ui);
 
     // Set up callbacks
     handle_use_job_application(&conn, &ui);

@@ -1,18 +1,19 @@
-use std::{
-    collections::HashMap,
-    fmt::{Debug, Display},
-};
+use std::fmt::{Debug, Display};
 
+#[cfg(feature = "mysql")]
 use mysql::{
     params,
     prelude::{FromRow, FromValue, ToValue},
     Params, Value,
 };
+#[cfg(feature = "mysql")]
+use std::collections::HashMap;
 use time::{Date, Duration};
 
 /// A row in the job application table
-#[derive(Debug, Clone, FromRow, PartialEq, Eq)]
-#[mysql(table_name = "job_applications")]
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "mysql", derive(FromRow))]
+#[cfg_attr(feature = "mysql", mysql(table_name = "job_applications"))]
 pub struct JobApplication {
     /// The table primary key
     pub id: i32,
@@ -36,6 +37,7 @@ pub struct JobApplication {
     pub notes: Option<String>,
 }
 
+#[cfg(feature = "mysql")]
 impl Into<Params> for &JobApplication {
     fn into(self) -> Params {
         params! {
@@ -95,6 +97,7 @@ impl From<String> for HumanResponse {
     }
 }
 
+#[cfg(feature = "mysql")]
 impl ToValue for HumanResponse {
     fn to_value(&self) -> Value {
         match self {
@@ -106,6 +109,7 @@ impl ToValue for HumanResponse {
     }
 }
 
+#[cfg(feature = "mysql")]
 impl FromValue for HumanResponse {
     // All we need to do is specify an intermediate.
     // The default implementation automatically converts `Value` -> `String` -> `HumanResponse`
@@ -154,6 +158,7 @@ impl JobApplicationField {
     }
 }
 
+#[cfg(feature = "mysql")]
 impl ToValue for JobApplicationField {
     fn to_value(&self) -> Value {
         match self {
@@ -174,6 +179,7 @@ impl ToValue for JobApplicationField {
 /// Newtype to allow impl Into<Params>
 pub struct PartialJobApplication(pub Vec<JobApplicationField>);
 
+#[cfg(feature = "mysql")]
 impl Into<Params> for PartialJobApplication {
     fn into(self) -> Params {
         let mut params_map: HashMap<Vec<u8>, Value> = HashMap::with_capacity(self.0.len());
@@ -184,7 +190,7 @@ impl Into<Params> for PartialJobApplication {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "mysql"))]
 mod tests {
     use time::{ext::NumericalDuration, Month};
 
