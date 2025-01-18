@@ -62,7 +62,7 @@ mod backend_connection {
             PathBuf::from(".")
         });
 
-        get_or_make_db(home.join("/ats-tracking.db3"))
+        get_or_make_db(home.join("ats-tracking.db3"))
     }
 
     /// Get connection for a path and ensure the job_applications table exists
