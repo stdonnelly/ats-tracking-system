@@ -2,9 +2,9 @@ use rusqlite::{
     types::{FromSql, FromSqlError, ToSqlOutput, ValueRef},
     Row, ToSql,
 };
-use time::ext::NumericalDuration;
+use time::{ext::NumericalDuration, Duration};
 
-use super::{HumanResponse, JobApplication};
+use super::{HumanResponse, JobApplication, JobApplicationField, PartialJobApplication};
 
 impl TryFrom<&Row<'_>> for JobApplication {
     type Error = rusqlite::Error;
@@ -50,5 +50,31 @@ impl FromSql for HumanResponse {
                 )
             })
         })
+    }
+}
+
+impl From<JobApplicationField> for Box<dyn ToSql> {
+    fn from(value: JobApplicationField) -> Self {
+        match value {
+            JobApplicationField::Id(value) => Box::new(value),
+            JobApplicationField::Source(value)
+            | JobApplicationField::Company(value)
+            | JobApplicationField::JobTitle(value) => Box::new(value),
+            JobApplicationField::ApplicationDate(value) => Box::new(value),
+            JobApplicationField::TimeInvestment(value) => {
+                Box::new(value.map(Duration::whole_seconds))
+            }
+            JobApplicationField::HumanResponse(value) => Box::new(value),
+            JobApplicationField::HumanResponseDate(value) => Box::new(value),
+            JobApplicationField::ApplicationWebsite(value) | JobApplicationField::Notes(value) => {
+                Box::new(value)
+            }
+        }
+    }
+}
+
+impl From<PartialJobApplication> for Vec<Box<dyn ToSql>> {
+    fn from(value: PartialJobApplication) -> Self {
+        value.0.into_iter().map(Into::into).collect::<Vec<_>>()
     }
 }
