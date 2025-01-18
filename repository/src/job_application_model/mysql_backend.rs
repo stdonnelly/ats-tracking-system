@@ -2,7 +2,7 @@ use crate::job_application_model::{HumanResponse, JobApplication, JobApplication
 
 use mysql::{
     params,
-    prelude::{FromRow, FromValue, ToValue},
+    prelude::{FromValue, ToValue},
     Params, Value,
 };
 

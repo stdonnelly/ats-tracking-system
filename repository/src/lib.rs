@@ -163,3 +163,12 @@ mod backend_connection {
         }
     }
 }
+
+/// Tests module
+///
+/// Currently only sqlite can be tested because it's easier to do integration tests on.
+#[cfg(test)]
+mod tests {
+    #[cfg(not(feature = "mysql"))]
+    mod sqlite_tests;
+}
