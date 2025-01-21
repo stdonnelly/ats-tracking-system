@@ -169,6 +169,13 @@ impl JobApplicationRepository for Connection {
             }
         }
 
+        // Assert there is at least one change
+        if is_first {
+            return Err(rusqlite::Error::ToSqlConversionFailure(Box::from(
+                "Unable to generate SQL statement because there are no changes",
+            )));
+        }
+
         // End with the WHERE clause
         query_builder += &format!(
             "\nWHERE id = ?{}",
