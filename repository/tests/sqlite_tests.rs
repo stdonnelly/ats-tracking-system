@@ -1,9 +1,11 @@
 //! Integration tests for the SQLite implementation
 
+#![cfg(not(feature = "mysql"))]
+
 use rusqlite::{named_params, Connection};
 use time::{ext::NumericalDuration as _, Date, Month};
 
-use crate::{
+use repository::{
     job_application_model::{
         HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
     },
@@ -1002,7 +1004,10 @@ fn test_delete_job_application_invalid_id() -> Result<(), Box<dyn std::error::Er
 fn get_memory_connection() -> Result<Connection, rusqlite::Error> {
     let conn = Connection::open_in_memory()?;
 
-    conn.execute(include_str!("../resources/sqlite_table_definition.sql"), ())?;
+    conn.execute(
+        include_str!("../src/resources/sqlite_table_definition.sql"),
+        (),
+    )?;
 
     Ok(conn)
 }

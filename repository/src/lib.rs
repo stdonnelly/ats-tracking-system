@@ -54,6 +54,7 @@ mod backend_connection {
         // The ats-tracking.db3 file should be placed in the user's home directory
 
         // The reason this is deprecated is fixed in Rust 1.85 and the deprecation notice will be removed soon.
+        #[allow(deprecated)]
         let home = std::env::home_dir().unwrap_or_else(|| {
             // If home_dir() fails, use current working directory
             eprintln!(
@@ -162,13 +163,4 @@ mod backend_connection {
             Ok(())
         }
     }
-}
-
-/// Tests module
-///
-/// Currently only sqlite can be tested because it's easier to do integration tests on.
-#[cfg(test)]
-mod tests {
-    #[cfg(not(feature = "mysql"))]
-    mod sqlite_tests;
 }
