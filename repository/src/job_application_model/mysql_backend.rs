@@ -1,4 +1,6 @@
-use crate::job_application_model::{HumanResponse, JobApplication, JobApplicationField, PartialJobApplication};
+use crate::job_application_model::{
+    HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
+};
 
 use mysql::{
     params,
@@ -71,7 +73,7 @@ impl Into<Params> for PartialJobApplication {
 
 #[cfg(test)]
 mod tests {
-    use time::{ext::NumericalDuration, Month};
+    use time::{ext::NumericalDuration, Date, Month};
 
     use super::*;
 
@@ -96,7 +98,8 @@ mod tests {
         let actual_params: Params = (&example_job_application).into();
         let expected_map = HashMap::from([
             // Into<Params> never applies id because MySQL auto increment handles that
-            // (b"id".to_vec(), Value::Int(12)),
+            // It still is converted because of the full `update_job_application`
+            (b"id".to_vec(), Value::Int(12)),
             (b"source".to_vec(), Value::Bytes(b"foo source".to_vec())),
             (b"company".to_vec(), Value::Bytes(b"foo company".to_vec())),
             (b"job_title".to_vec(), Value::Bytes(b"foo job".to_vec())),
@@ -156,7 +159,8 @@ mod tests {
         let actual_params: Params = (&example_job_application).into();
         let expected_map = HashMap::from([
             // Into<Params> never applies id because MySQL auto increment handles that
-            // (b"id".to_vec(), Value::Int(12)),
+            // It still is converted because of the full `update_job_application`
+            (b"id".to_vec(), Value::Int(12)),
             (b"source".to_vec(), Value::Bytes(b"foo source".to_vec())),
             (b"company".to_vec(), Value::Bytes(b"foo company".to_vec())),
             (b"job_title".to_vec(), Value::Bytes(b"foo job".to_vec())),
