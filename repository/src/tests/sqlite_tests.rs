@@ -4,7 +4,9 @@ use rusqlite::{named_params, Connection};
 use time::{ext::NumericalDuration as _, Date, Month};
 
 use crate::{
-    job_application_model::{HumanResponse, JobApplication},
+    job_application_model::{
+        HumanResponse, JobApplication, JobApplicationField, PartialJobApplication,
+    },
     job_application_repository::JobApplicationRepository,
 };
 
@@ -360,7 +362,8 @@ fn test_search_job_applications() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Do the same for when the query would not match if it was case sensitive
-    let job_applications_inverted_query = conn.search_job_applications(&search_string_invert_case)?;
+    let job_applications_inverted_query =
+        conn.search_job_applications(&search_string_invert_case)?;
 
     for (name, id) in [
         ("source", id_source),
@@ -441,27 +444,542 @@ fn test_insert_job_application() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Test [JobApplicationRepository::update_human_response] with all three human response variants
 #[test]
 fn test_update_human_response() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = get_memory_connection()?;
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    let inserted = conn.insert_job_application(&job_application)?;
+
+    // Job application should now have human response `None`
+    // No need to test this, because there is already a test for inserting
+
+    // Change to rejection
+    conn.update_human_response(
+        inserted.id,
+        HumanResponse::Rejection,
+        Some(Date::from_calendar_date(2000, Month::February, 2).unwrap()),
+    )?;
+
+    // Assert rejection with that date
+    assert_eq!(
+        conn.get_job_application_by_id(inserted.id)?,
+        Some(JobApplication {
+            human_response: HumanResponse::Rejection,
+            human_response_date: Some(Date::from_calendar_date(2000, Month::February, 2).unwrap()),
+            ..inserted.clone()
+        }),
+        "Job application should have human response 'Rejection'"
+    );
+
+    // Change to interview request
+    conn.update_human_response(
+        inserted.id,
+        HumanResponse::InterviewRequest,
+        Some(Date::from_calendar_date(2000, Month::February, 3).unwrap()),
+    )?;
+
+    // Assert interview request with the given date
+    assert_eq!(
+        conn.get_job_application_by_id(inserted.id)?,
+        Some(JobApplication {
+            human_response: HumanResponse::InterviewRequest,
+            human_response_date: Some(Date::from_calendar_date(2000, Month::February, 3).unwrap()),
+            ..inserted.clone()
+        }),
+        "Job application should have human response 'Interview Request'"
+    );
+
+    // Change to None
+    conn.update_human_response(inserted.id, HumanResponse::None, None)?;
+
+    assert_eq!(
+        conn.get_job_application_by_id(inserted.id)?,
+        Some(JobApplication {
+            human_response: HumanResponse::None,
+            human_response_date: None,
+            ..inserted.clone()
+        }),
+        "Job application should have human response 'None'"
+    );
+
     Ok(())
 }
 
+/// Test [JobApplicationRepository::update_job_application]
+///
+/// This should test that the matching job application, and only the matching job application, is updated
 #[test]
 fn test_update_job_application() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = get_memory_connection()?;
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert the job application twice
+    let job_application_1 = conn.insert_job_application(&job_application)?;
+    let job_application_2 = conn.insert_job_application(&job_application)?;
+
+    // Generated an updated job application from the second id
+    let updated_job_application = JobApplication {
+        id: job_application_2.id,
+        source: "Updated source".to_string(),
+        company: "Updated company".to_string(),
+        job_title: "Updated job title".to_string(),
+        application_date: Date::from_calendar_date(2001, Month::January, 1).unwrap(),
+        time_investment: Some(3.seconds()),
+        human_response: HumanResponse::Rejection,
+        human_response_date: Some(Date::from_calendar_date(2001, Month::February, 1).unwrap()),
+        application_website: Some("http://example.com".to_string()),
+        notes: Some("Updated notes".to_string()),
+    };
+
+    // Perform the update
+    conn.update_job_application(&updated_job_application)?;
+
+    assert_eq!(
+        conn.get_job_application_by_id(job_application_1.id)?,
+        Some(job_application_1),
+        "Other job applications should be unaffected"
+    );
+
+    assert_eq!(
+        conn.get_job_application_by_id(job_application_2.id)?,
+        Some(updated_job_application),
+        "The matching job application should be updated"
+    );
+
     Ok(())
 }
 
+/// Test [JobApplicationRepository::update_job_application_partial] to make sure that unreferenced fields are not affected
 #[test]
-fn test_update_job_application_partial() -> Result<(), Box<dyn std::error::Error>> {
+fn test_update_job_application_partial_partial() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = get_memory_connection()?;
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert the job application twice so we can ensure the non-matching job application is not modified
+    let job_application_1 = conn.insert_job_application(&job_application)?;
+    let job_application_2 = conn.insert_job_application(&job_application)?;
+
+    // Create an update
+    let update = PartialJobApplication(vec![
+        JobApplicationField::Id(job_application_2.id),
+        JobApplicationField::Company("Updated company".to_string()),
+    ]);
+
+    // Execute the update
+    conn.update_job_application_partial(update)?;
+
+    // Assert others are unaffected
+    assert_eq!(
+        conn.get_job_application_by_id(job_application_1.id)?,
+        Some(job_application_1),
+        "Other job applications should be unaffected"
+    );
+
+    // Assert the change happened correctly
+    assert_eq!(
+        conn.get_job_application_by_id(job_application_2.id)?,
+        Some(JobApplication {
+            company: "Updated company".to_string(),
+            ..job_application_2
+        }),
+        "The matching job application should be updated"
+    );
+
     Ok(())
 }
 
+/// Test [JobApplicationRepository::update_job_application_partial] to make sure that all referenced fields are updated
+#[test]
+fn test_update_job_application_partial_full() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = get_memory_connection()?;
+
+    // Most of this code is copied from `test_update_job_application()`
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert the job application twice
+    let job_application_1 = conn.insert_job_application(&job_application)?;
+    let job_application_2 = conn.insert_job_application(&job_application)?;
+
+    // Generated an updated job application from the second id
+    let updated_job_application = JobApplication {
+        id: job_application_2.id,
+        source: "Updated source".to_string(),
+        company: "Updated company".to_string(),
+        job_title: "Updated job title".to_string(),
+        application_date: Date::from_calendar_date(2001, Month::January, 1).unwrap(),
+        time_investment: Some(3.seconds()),
+        human_response: HumanResponse::Rejection,
+        human_response_date: Some(Date::from_calendar_date(2001, Month::February, 1).unwrap()),
+        application_website: Some("http://example.com".to_string()),
+        notes: Some("Updated notes".to_string()),
+    };
+
+    // Get the updated job application as a partial job application
+    let update_as_partial = PartialJobApplication(vec![
+        JobApplicationField::Id(updated_job_application.id),
+        JobApplicationField::Source(updated_job_application.source.clone()),
+        JobApplicationField::Company(updated_job_application.company.clone()),
+        JobApplicationField::JobTitle(updated_job_application.job_title.clone()),
+        JobApplicationField::ApplicationDate(updated_job_application.application_date),
+        JobApplicationField::TimeInvestment(updated_job_application.time_investment),
+        JobApplicationField::HumanResponse(updated_job_application.human_response),
+        JobApplicationField::HumanResponseDate(updated_job_application.human_response_date),
+        JobApplicationField::ApplicationWebsite(
+            updated_job_application.application_website.clone(),
+        ),
+        JobApplicationField::Notes(updated_job_application.notes.clone()),
+    ]);
+
+    // Perform the update
+    conn.update_job_application_partial(update_as_partial)?;
+
+    assert_eq!(
+        conn.get_job_application_by_id(job_application_1.id)?,
+        Some(job_application_1),
+        "Other job applications should be unaffected"
+    );
+
+    assert_eq!(
+        conn.get_job_application_by_id(job_application_2.id)?,
+        Some(updated_job_application),
+        "The matching job application should be updated"
+    );
+
+    Ok(())
+}
+
+/// Test [JobApplicationRepository::update_job_application_partial] to ensure a missing ID is handled correctly
+#[test]
+fn test_update_job_application_partial_missing_id() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = get_memory_connection()?;
+
+    let expected_error_message = "Unable to generate SQL statement because there is no id field";
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert
+    let inserted = conn.insert_job_application(&job_application)?;
+
+    // Create an update
+    let update = PartialJobApplication(vec![JobApplicationField::Company(
+        "Updated company".to_string(),
+    )]);
+
+    // Try to update without an ID
+    let update_result = conn.update_job_application_partial(update);
+
+    // Assert the correct error was generated
+    assert_eq!(
+        update_result
+            .expect_err(
+                "Attempting to update a job application without an ID should generate an error"
+            )
+            .to_string(),
+        expected_error_message,
+        "Unexpected error message"
+    );
+
+    // Assert no change was made
+    assert_eq!(
+        conn.get_job_applications()?,
+        vec![inserted],
+        "Job application should not be changed when an error is encountered"
+    );
+
+    Ok(())
+}
+
+/// Test [JobApplicationRepository::update_job_application_partial] to ensure too many IDs is handled correctly
+#[test]
+fn test_update_job_application_partial_too_many_ids() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = get_memory_connection()?;
+
+    let expected_error_message =
+        "Unable to generate SQL statement because there are multiple id fields";
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert
+    let inserted = conn.insert_job_application(&job_application)?;
+
+    // Create an update
+    let update = PartialJobApplication(vec![
+        JobApplicationField::Id(1),
+        JobApplicationField::Company("Updated company".to_string()),
+        JobApplicationField::Id(2),
+    ]);
+
+    // Try to update without an ID
+    let update_result = conn.update_job_application_partial(update);
+
+    // Assert the correct error was generated
+    assert_eq!(
+        update_result
+            .expect_err(
+                "Attempting to update a job application with multiple IDs should generate an error"
+            )
+            .to_string(),
+        expected_error_message,
+        "Unexpected error message"
+    );
+
+    // Assert no change was made
+    assert_eq!(
+        conn.get_job_applications()?,
+        vec![inserted],
+        "Job application should not be changed when an error is encountered"
+    );
+
+    Ok(())
+}
+
+/// Test [JobApplicationRepository::update_job_application_partial] to ensure an invalid ID is handled correctly
+#[ignore = "TODO"]
+#[test]
+fn test_update_job_application_partial_invalid_id() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = get_memory_connection()?;
+
+    let expected_error_message = "Update failed: No job application matching ID 3";
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert
+    let inserted = conn.insert_job_application(&job_application)?;
+
+    // Create an update
+    let update = PartialJobApplication(vec![
+        JobApplicationField::Id(3),
+        JobApplicationField::Company("Updated company".to_string()),
+    ]);
+
+    // Try to update without an ID
+    let update_result = conn.update_job_application_partial(update);
+
+    // Assert the correct error was generated
+    assert_eq!(
+        update_result
+            .expect_err("Roo many IDs should produce an error")
+            .to_string(),
+        expected_error_message,
+        "Unexpected error message"
+    );
+
+    // Assert no change was made
+    assert_eq!(
+        conn.get_job_applications()?,
+        vec![inserted],
+        "Job application should not be changed when an error is encountered"
+    );
+
+    Ok(())
+}
+
+/// Test [JobApplicationRepository::update_job_application_partial] to ensure a request with no changes is handled correctly
+#[ignore = "TODO"]
+#[test]
+fn test_update_job_application_partial_no_change() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = get_memory_connection()?;
+
+    let expected_error_message = "Update failed: No changes";
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert
+    let inserted = conn.insert_job_application(&job_application)?;
+
+    // Create an update
+    let update = PartialJobApplication(vec![JobApplicationField::Id(inserted.id)]);
+
+    // Try to update without an ID
+    let update_result = conn.update_job_application_partial(update);
+
+    // Assert the correct error was generated
+    assert_eq!(
+        update_result
+            .expect_err("No changes should produce an error")
+            .to_string(),
+        expected_error_message,
+        "Unexpected error message"
+    );
+
+    // Assert no change was made
+    assert_eq!(
+        conn.get_job_applications()?,
+        vec![inserted],
+        "Job application should not be changed when an error is encountered"
+    );
+
+    Ok(())
+}
+
+/// Test [JobApplicationRepository::delete_job_application] to ensure the correct job application is deleted
 #[test]
 fn test_delete_job_application() -> Result<(), Box<dyn std::error::Error>> {
     let mut conn = get_memory_connection()?;
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert the job application twice
+    let job_application_1 = conn.insert_job_application(&job_application)?;
+    let job_application_2 = conn.insert_job_application(&job_application)?;
+
+    // Delete job application 2 and only job application 2
+    conn.delete_job_application(job_application_2.id)?;
+
+    assert_eq!(
+        conn.get_job_applications()?,
+        vec![job_application_1],
+        "Job application 2, and only job application 2, should be deleted"
+    );
+
+    Ok(())
+}
+
+/// Test [JobApplicationRepository::delete_job_application] to ensure an error is generated when an invalid id is used
+#[ignore = "TODO"]
+#[test]
+fn test_delete_job_application_invalid_id() -> Result<(), Box<dyn std::error::Error>> {
+    let mut conn = get_memory_connection()?;
+
+    let expected_error_message = "Update failed: No job application matching ID 3";
+
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Insert the job application twice
+    let job_application_1 = conn.insert_job_application(&job_application)?;
+
+    // Delete by an invalid id
+    let delete_result = conn.delete_job_application(3);
+
+    assert_eq!(
+        delete_result
+            .expect_err("Delete by an invalid id should produce an error")
+            .to_string(),
+        expected_error_message,
+        "Unexpected error message"
+    );
+
+    assert_eq!(
+        conn.get_job_applications()?,
+        vec![job_application_1],
+        "No job application should be deleted because the ID was invalid"
+    );
+
     Ok(())
 }
 
