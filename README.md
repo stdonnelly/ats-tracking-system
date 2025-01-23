@@ -25,15 +25,22 @@ Both are standalone executables that can be moved used anywhere, but they will b
 #### MySQL
 
 Using the argument `--features repository/mysql` when compiling will cause the application to use MySQL instead of SQLite for the database.
-This means that the `ats-tracking.db3` file will not be used, but a connection to a MySQL server will be required. Additionally, both executables will require a file named `.env` in the same directory or a parent directory as the executable. The .env file should define the following environment variables:
+This means that the `ats-tracking.db3` file will not be used, but a connection to a MySQL server will be required.
+The connection must be to a database that contains the `job_applications` table, and a user that has DELETE, INSERT, SELECT, and UPDATE permissions to that table.
+The schema for that table is in [db_config.sql](setup_scripts/db_config.sql).
 
-- DB_DATABASE
-- DB_USER
-- DB_PASSWORD
-- DB_HOST
-- DB_PORT
+The following environment variables are used by the MySQL version of the ATS tracking system.
+They can either be defined as environment variables, or in a file named ".env" in the same folder as the executable (or a parent folder).
 
-Additionally, they expect the user given by `DB_USER` to have read/write access to a table named `job_applications`, who's schema is defined in [db_config.sql](setup_scripts/db_config.sql).
+- DB_DATABASE: The name of the database to be used by ats-tracking
+- DB_USER: The username for ats-tracking to use for database access
+- DB_PASSWORD: The password for ats-tracking to use for database access
+- DB_HOST: Optional - The hostname or IP address of the database. Defaults to `127.0.0.1`
+- DB_PORT: Optional - The port of the database. Defaults to `3306`
+
+#### Optimization
+
+The `--release` argument is not necessary. It just makes the compiled application run a bit faster. See [Profiles - The Cargo Book](https://doc.rust-lang.org/cargo/reference/profiles.html) for more information.
 
 #### Only compiling one executable
 
@@ -74,7 +81,7 @@ This was the first interface that was made. It can still be used with the execut
 There is now (as of version 0.2.0) a graphical interface, with the executable`ats-tracking`.
 This uses [Slint](https://slint.dev/).
 Currently, there are some features present in the CLI version, but not the GUI version.
-Some of these features are irrelevant to the GUI (i.e. a partial update is unnecessar because the app can just pre-fill the form).
+Some of these features are irrelevant to the GUI (i.e. a partial update is unnecessary because the app can just pre-fill the form).
 
 ## License
 
@@ -83,4 +90,4 @@ Any derivatives of this project that include Slint need to use one of the [Slint
 
 ## Footnotes
 
-[^1]: Because the function that finds the home directory is not implemented correctly for Rust <= 1.84, the `ats-tracking.db3` may be placed in the wrong directory on Windows, or the application may fail to run. macOS, Linux, and other Unix-like operating systems are unaffected.
+[^1]: Because the function that finds the home directory is not implemented correctly for Rust <= 1.84, the `ats-tracking.db3` may be placed in the wrong directory on Windows, or the application may fail to run. macOS, Linux, and other Unix-like operating systems are unaffected. See the deprecation notice on [home_dir](https://doc.rust-lang.org/1.84.0/std/env/fn.home_dir.html#deprecation)

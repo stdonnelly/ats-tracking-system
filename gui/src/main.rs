@@ -20,7 +20,8 @@ mod controller;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Objects that should be owned by the main function
-    dotenv()?;
+    // We don't really care is a .env file is successfully found because we can just use actual environment variables
+    _ = dotenv();
     let conn = Rc::new(RefCell::new(repository::get_conn()?));
     let ui = AppWindow::new()?;
 

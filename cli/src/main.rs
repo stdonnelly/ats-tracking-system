@@ -7,7 +7,8 @@ mod shell_option;
 
 fn main() {
     // Objects that should be owned by the main function
-    dotenv().unwrap();
+    // We don't really care is a .env file is successfully found because we can just use actual environment variables
+    _ = dotenv();
     let mut conn = repository::get_conn().unwrap();
 
     command_line::main_loop(&mut conn).unwrap();

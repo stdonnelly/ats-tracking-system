@@ -20,20 +20,30 @@ mod backend_connection {
         let mut sql_opts_builder = OptsBuilder::new();
         if let Ok(host_name) = env::var("DB_HOST") {
             sql_opts_builder = sql_opts_builder.ip_or_hostname(Some(host_name));
+        } else {
+            eprintln!("Warning: DB_HOST not defined, using default");
         }
         if let Ok(port_str) = env::var("DB_PORT") {
             if let Ok(port_int) = port_str.parse::<u16>() {
                 sql_opts_builder = sql_opts_builder.tcp_port(port_int);
             }
+        } else {
+            eprintln!("Warning: DB_PORT not defined, using default");
         }
         if let Ok(user) = env::var("DB_USER") {
             sql_opts_builder = sql_opts_builder.user(Some(user));
+        } else {
+            eprintln!("Warning: DB_USER not defined");
         }
         if let Ok(pass) = env::var("DB_PASSWORD") {
             sql_opts_builder = sql_opts_builder.pass(Some(pass));
+        } else {
+            eprintln!("Warning: DB_PASSWORD not defined")
         }
         if let Ok(db_name) = env::var("DB_DATABASE") {
             sql_opts_builder = sql_opts_builder.db_name(Some(db_name));
+        } else {
+            eprintln!("Warning: DB_DATABASE not defined")
         }
 
         let pool = Pool::new(sql_opts_builder)?;
