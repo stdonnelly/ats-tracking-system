@@ -1,11 +1,11 @@
 //! Entry point for the GUI version of ats-tracking
-//! 
+//!
 //! This crate uses Slint for a GUI.
 
 // Some workaround for windows that was in the project template
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use std::{cell::RefCell, error::Error, rc::Rc};
+use std::{cell::RefCell, error::Error, ops::DerefMut, rc::Rc};
 
 use controller::{
     handle_date_diff, handle_new_job_application, handle_submit_job_application,
@@ -20,12 +20,13 @@ mod controller;
 
 fn main() -> Result<(), Box<dyn Error>> {
     // Objects that should be owned by the main function
-    dotenv()?;
+    // We don't really care is a .env file is successfully found because we can just use actual environment variables
+    _ = dotenv();
     let conn = Rc::new(RefCell::new(repository::get_conn()?));
     let ui = AppWindow::new()?;
 
     // Set initial state
-    init_ui(RefCell::borrow_mut(&conn).as_mut(), &ui);
+    init_ui(RefCell::borrow_mut(&conn).deref_mut(), &ui);
 
     // Set up callbacks
     handle_use_job_application(&conn, &ui);

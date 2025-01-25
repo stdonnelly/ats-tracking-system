@@ -1,6 +1,6 @@
 //! Controller functionality to handle actions triggered by or affecting the GUI
 
-use std::{cell::RefCell, iter::once, rc::Rc};
+use std::{cell::RefCell, iter::once, ops::DerefMut, rc::Rc};
 
 use crate::model::{self, get_today_as_slint_date, AppWindow, JobApplicationView};
 use repository::{
@@ -40,18 +40,17 @@ pub fn init_ui<C: JobApplicationRepository>(conn: &mut C, ui: &AppWindow) {
 /// Handle the callback for `use-job-application`
 ///
 /// Sets the sidebar job application to the job application that corresponds to the given ID.
-pub fn handle_use_job_application<C, Q>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
+pub fn handle_use_job_application<C>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
 where
-    C: JobApplicationRepository + AsMut<Q> + 'static,
-    Q: JobApplicationRepository,
+    C: JobApplicationRepository + 'static,
 {
-    let conn_clone = Rc::clone(conn);
     let ui_clone = ui.as_weak();
+    let conn_clone = Rc::clone(&conn);
 
     ui.on_use_job_application(move |application_id| {
         if let Some(ui) = ui_clone.upgrade() {
             select_row(
-                RefCell::borrow_mut(&conn_clone).as_mut(),
+                RefCell::borrow_mut(&conn_clone).deref_mut(),
                 ui,
                 application_id,
             );
@@ -64,10 +63,9 @@ where
 /// Handle the callback for `submit-job-application`
 ///
 /// Creates or updates the job application on the sidebar into the database
-pub fn handle_submit_job_application<C, Q>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
+pub fn handle_submit_job_application<C>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
 where
-    C: JobApplicationRepository + AsMut<Q> + 'static,
-    Q: JobApplicationRepository,
+    C: JobApplicationRepository + 'static,
 {
     let conn_clone = Rc::clone(conn);
     let ui_clone = ui.as_weak();
@@ -76,7 +74,7 @@ where
         if let Some(ui) = ui_clone.upgrade() {
             let job_application_view = ui.get_selected_job_application();
             submit_job_application(
-                RefCell::borrow_mut(&conn_clone).as_mut(),
+                RefCell::borrow_mut(&conn_clone).deref_mut(),
                 &ui,
                 job_application_view,
             )
