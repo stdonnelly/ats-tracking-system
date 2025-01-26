@@ -104,6 +104,8 @@ impl From<HumanResponse> for HumanResponseView {
             HumanResponse::None => Self::None,
             HumanResponse::Rejection => Self::Rejection,
             HumanResponse::InterviewRequest => Self::InterviewRequest,
+            HumanResponse::InterviewedThenRejected => Self::InterviewedThenRejected,
+            HumanResponse::JobOffer => Self::JobOffer,
         }
     }
 }
@@ -114,6 +116,8 @@ impl From<HumanResponseView> for HumanResponse {
             HumanResponseView::None => Self::None,
             HumanResponseView::Rejection => Self::Rejection,
             HumanResponseView::InterviewRequest => Self::InterviewRequest,
+            HumanResponseView::InterviewedThenRejected => Self::InterviewedThenRejected,
+            HumanResponseView::JobOffer => Self::JobOffer,
         }
     }
 }
