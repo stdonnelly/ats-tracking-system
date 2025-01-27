@@ -123,11 +123,14 @@ where
             }
         }
 
-                // Assert there is at least one change
-                if is_first {
-                    // Use `std::io::Error` to return an arbitrary `mysql::Error`
-                    return Err(std::io::Error::other("Unable to generate SQL statement because there are no changes").into());
-                }
+        // Assert there is at least one change
+        if is_first {
+            // Use `std::io::Error` to return an arbitrary `mysql::Error`
+            return Err(std::io::Error::other(
+                "Unable to generate SQL statement because there are no changes",
+            )
+            .into());
+        }
 
         // End with the WHERE clause
         query_builder += "\nWHERE id = :id";

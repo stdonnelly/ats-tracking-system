@@ -4,6 +4,8 @@ export enum HumanResponseView {
     None,
     Rejection,
     InterviewRequest,
+    InterviewedThenRejected,
+    JobOffer,
 }
 
 export struct JobApplicationView {
@@ -39,6 +41,10 @@ export component AppWindow inherits Window {
             "Rejection"
         } else if (hr == HumanResponseView.InterviewRequest) {
             "Interview request"
+        } else if (hr == HumanResponseView.InterviewedThenRejected) {
+            "Interviewed then rejected"
+        } else if (hr == HumanResponseView.JobOffer) {
+            "Job offer"
         } else {
             "ERROR"
         }
@@ -49,6 +55,10 @@ export component AppWindow inherits Window {
             HumanResponseView.Rejection;
         } else if (s == "Interview request") {
             HumanResponseView.InterviewRequest;
+        } else if (s == "Interviewed then rejected") {
+            HumanResponseView.InterviewedThenRejected;
+        } else if (s == "Job offer") {
+            HumanResponseView.JobOffer;
         } else {
             // Fallback to None if None or not recognized
             HumanResponseView.None;
@@ -275,7 +285,13 @@ export component AppWindow inherits Window {
                 human-response-input := ComboBox {
                     height: 2.5rem;
                     // text: human-response-to-string(selected-job-application.human-response);
-                    model: ["No response yet", "Rejection", "Interview request"];
+                    model: [
+                        "No response yet",
+                        "Rejection",
+                        "Interview request",
+                        "Interviewed then rejected",
+                        "Job offer"
+                    ];
                     current-value: human-response-to-string(selected-job-application.human-response);
                     selected(value) => {
                         selected-job-application.human-response = string-to-human-response(value);

@@ -148,16 +148,30 @@ fn create<C: JobApplicationRepository>(conn: &mut C) -> Result<(), Box<dyn std::
         },
     )?;
     human_response = input(
-        "Response sent by a human\nEnter r for rejection, i for interview request, or leave blank for none:",
+        "Response sent by a human. Enter one of the following:
+\tr for rejection
+\ti for interview request
+\tir for interviewed then rejected
+\tj for job offer
+\tor leave blank for none\n",
         |s| {
-            if s.starts_with(&['r', 'R']) {
-                Ok(HumanResponse::Rejection)
-            } else if s.starts_with(&['i', 'I']) {
-                Ok(HumanResponse::InterviewRequest)
-            } else if s.is_empty() {
-                Ok(HumanResponse::None)
+            let s_lowercase = s.to_lowercase();
+            let mut s_chars = s_lowercase.chars();
+            if let Some(first_char) = s_chars.next() {
+                match first_char {
+                    'r' => Ok(HumanResponse::Rejection),
+                    'i' => {
+                        if s_chars.next() == Some('r') {
+                            Ok(HumanResponse::InterviewedThenRejected)
+                        } else {
+                            Ok(HumanResponse::InterviewRequest)
+                        }
+                    }
+                    'j' => Ok(HumanResponse::JobOffer),
+                    _ => Err("Unknown response"),
+                }
             } else {
-                Err("Unknown response")
+                Ok(HumanResponse::None)
             }
         },
     )?;
@@ -314,16 +328,30 @@ fn update_human_response_command<C: JobApplicationRepository>(
 
     // Get the parameters
     human_response = input(
-        "Response sent by a human\nEnter r for rejection, i for interview request, or leave blank for none:",
+        "Response sent by a human. Enter one of the following:
+\tr for rejection
+\ti for interview request
+\tir for interviewed then rejected
+\tj for job offer
+\tor leave blank for none\n",
         |s| {
-            if s.starts_with(&['r', 'R']) {
-                Ok(HumanResponse::Rejection)
-            } else if s.starts_with(&['i', 'I']) {
-                Ok(HumanResponse::InterviewRequest)
-            } else if s.is_empty() {
-                Ok(HumanResponse::None)
+            let s_lowercase = s.to_lowercase();
+            let mut s_chars = s_lowercase.chars();
+            if let Some(first_char) = s_chars.next() {
+                match first_char {
+                    'r' => Ok(HumanResponse::Rejection),
+                    'i' => {
+                        if s_chars.next() == Some('r') {
+                            Ok(HumanResponse::InterviewedThenRejected)
+                        } else {
+                            Ok(HumanResponse::InterviewRequest)
+                        }
+                    }
+                    'j' => Ok(HumanResponse::JobOffer),
+                    _ => Err("Unknown response"),
+                }
             } else {
-                Err("Unknown response")
+                Ok(HumanResponse::None)
             }
         },
     )?;
@@ -405,22 +433,38 @@ fn update_other_command<C: JobApplicationRepository>(
     );
     input_optional!(
         partial_application,
-        "Response sent by a human\nEnter r for rejection, i for interview request, or 'remove' for none",
+        "Response sent by a human. Enter one of the following:
+\tr for rejection
+\ti for interview request
+\tir for interviewed then rejected
+\tj for job offer
+\tremove for none\n",
         |s| {
             if s == "remove" {
                 Ok(Some(HumanResponse::None))
-            } else if s.starts_with(&['r', 'R']) {
-                Ok(Some(HumanResponse::Rejection))
-            } else if s.starts_with(&['i', 'I']) {
-                Ok(Some(HumanResponse::InterviewRequest))
-            } else if s.is_empty() {
-                Ok(None)
             } else {
-                Err("Unknown response")
+                let s_lowercase = s.to_lowercase();
+                let mut s_chars = s_lowercase.chars();
+                if let Some(first_char) = s_chars.next() {
+                    match first_char {
+                        'r' => Ok(Some(HumanResponse::Rejection)),
+                        'i' => {
+                            if s_chars.next() == Some('r') {
+                                Ok(Some(HumanResponse::InterviewedThenRejected))
+                            } else {
+                                Ok(Some(HumanResponse::InterviewRequest))
+                            }
+                        }
+                        'j' => Ok(Some(HumanResponse::JobOffer)),
+                        _ => Err("Unknown response"),
+                    }
+                } else {
+                    Ok(None)
+                }
             }
         },
         HumanResponse
-        );
+    );
     // Only prompt if human response is not null
     input_optional!(
         partial_application,

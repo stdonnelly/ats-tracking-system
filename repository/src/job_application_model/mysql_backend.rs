@@ -33,6 +33,8 @@ impl ToValue for HumanResponse {
             HumanResponse::None => "N",
             HumanResponse::Rejection => "R",
             HumanResponse::InterviewRequest => "I",
+            HumanResponse::InterviewedThenRejected => "IR",
+            HumanResponse::JobOffer => "J",
         }
         .to_value()
     }
@@ -208,6 +210,16 @@ mod tests {
             Value::Bytes(b"I".to_vec()),
             "InterviewRequest -> I"
         );
+        assert_eq!(
+            HumanResponse::InterviewedThenRejected.to_value(),
+            Value::Bytes(b"IR".to_vec()),
+            "InterviewedThenRejected -> IR"
+        );
+        assert_eq!(
+            HumanResponse::JobOffer.to_value(),
+            Value::Bytes(b"J".to_vec()),
+            "JobOffer -> J"
+        );
     }
 
     // FromRow can't really be tested because `Row` fields are all private.
@@ -230,6 +242,16 @@ mod tests {
             HumanResponse::from_value(Value::Bytes(b"I".to_vec())),
             HumanResponse::InterviewRequest,
             "I -> InterviewRequest"
+        );
+        assert_eq!(
+            HumanResponse::from_value(Value::Bytes(b"IR".to_vec())),
+            HumanResponse::InterviewedThenRejected,
+            "IR -> InterviewedThenRejected"
+        );
+        assert_eq!(
+            HumanResponse::from_value(Value::Bytes(b"J".to_vec())),
+            HumanResponse::JobOffer,
+            "J -> JobOffer"
         );
 
         // Error case: using "" instead of NULL because intermediate String cannot be constructed from NULL

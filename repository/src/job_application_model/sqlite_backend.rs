@@ -33,6 +33,8 @@ impl ToSql for HumanResponse {
             HumanResponse::None => "N",
             HumanResponse::Rejection => "R",
             HumanResponse::InterviewRequest => "I",
+            HumanResponse::InterviewedThenRejected => "IR",
+            HumanResponse::JobOffer => "J",
         }
         .into())
     }
@@ -76,5 +78,91 @@ impl From<JobApplicationField> for Box<dyn ToSql> {
 impl From<PartialJobApplication> for Vec<Box<dyn ToSql>> {
     fn from(value: PartialJobApplication) -> Self {
         value.0.into_iter().map(Into::into).collect::<Vec<_>>()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Ensure [ToSql] is implemented correctly for all variants of [HumanResponse]
+    #[test]
+    fn test_to_sql_human_response() {
+        assert_eq!(
+            ToSqlOutput::from("N"),
+            HumanResponse::None.to_sql().unwrap(),
+            "None -> N"
+        );
+        assert_eq!(
+            ToSqlOutput::from("R"),
+            HumanResponse::Rejection.to_sql().unwrap(),
+            "Rejection -> R"
+        );
+        assert_eq!(
+            ToSqlOutput::from("I"),
+            HumanResponse::InterviewRequest.to_sql().unwrap(),
+            "InterviewRequest -> I"
+        );
+        assert_eq!(
+            ToSqlOutput::from("IR"),
+            HumanResponse::InterviewedThenRejected.to_sql().unwrap(),
+            "InterviewedThenRejected -> IR"
+        );
+        assert_eq!(
+            ToSqlOutput::from("J"),
+            HumanResponse::JobOffer.to_sql().unwrap(),
+            "JobOffer -> J"
+        );
+    }
+
+    /// Ensure [FromSql] is implemented correctly for [HumanResponse]
+    #[test]
+    fn test_from_sql_human_response() {
+        // Normal cases
+        assert_eq!(
+            HumanResponse::None,
+            HumanResponse::column_result("N".into()).unwrap(),
+            "N -> None"
+        );
+        assert_eq!(
+            HumanResponse::Rejection,
+            HumanResponse::column_result("R".into()).unwrap(),
+            "R -> Rejection"
+        );
+        assert_eq!(
+            HumanResponse::InterviewRequest,
+            HumanResponse::column_result("I".into()).unwrap(),
+            "I -> InterviewRequest"
+        );
+        assert_eq!(
+            HumanResponse::InterviewedThenRejected,
+            HumanResponse::column_result("IR".into()).unwrap(),
+            "IR -> InterviewedThenRejected"
+        );
+        assert_eq!(
+            HumanResponse::JobOffer,
+            HumanResponse::column_result("J".into()).unwrap(),
+            "J -> JobOffer"
+        );
+
+        // Error cases
+        assert_eq!(
+            HumanResponse::None,
+            HumanResponse::column_result("".into()).unwrap(),
+            "Empty string should produce HumanResponse::None"
+        );
+        assert_eq!(
+            FromSqlError::Other("Unable to parse value 'FOO' into a human response".into())
+                .to_string(),
+            HumanResponse::column_result("FOO".into())
+                .unwrap_err()
+                .to_string(),
+            "Invalid human response should produce an error"
+        );
+        assert_eq!(
+            FromSqlError::InvalidType,
+            HumanResponse::column_result(ValueRef::Null).unwrap_err(),
+            "NULL should produce an InvalidType error"
+        );
     }
 }

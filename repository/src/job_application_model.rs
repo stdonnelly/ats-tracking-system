@@ -50,6 +50,10 @@ pub enum HumanResponse {
     Rejection,
     /// The company requested an interview
     InterviewRequest,
+    /// Interviewed, then received a rejection
+    InterviewedThenRejected,
+    /// Interviewed, received a job offer
+    JobOffer,
 }
 
 impl Display for HumanResponse {
@@ -58,6 +62,8 @@ impl Display for HumanResponse {
             Self::None => "No response yet",
             Self::Rejection => "Rejection",
             Self::InterviewRequest => "Interview request",
+            Self::InterviewedThenRejected => "Interviewed, then rejected",
+            Self::JobOffer => "Job offer",
         })
     }
 }
@@ -67,6 +73,8 @@ impl TryFrom<&str> for HumanResponse {
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         match value.trim().to_lowercase().as_str() {
+            "job offer" | "j" => Ok(HumanResponse::JobOffer),
+            "interviewed then rejected" | "ir" => Ok(HumanResponse::InterviewedThenRejected),
             "interview request" | "i" => Ok(HumanResponse::InterviewRequest),
             "rejection" | "r" => Ok(HumanResponse::Rejection),
             "" | "n" => Ok(HumanResponse::None),
