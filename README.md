@@ -59,7 +59,7 @@ This is mainly for me to become more familiar with the language.
 
 #### SQLite
 
-This is the new default as of version 0.3.0.
+This is the default as of version 0.3.0.
 MySQL is still available using the feature `repository/mysql`.
 This has been added because this application does not need an actual SQL server, which add complexity in deployment.
  As an added benefit, SQLite is easier to test because I can create in-memory SQLite databases.
