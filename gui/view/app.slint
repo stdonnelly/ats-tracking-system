@@ -26,6 +26,7 @@ export component AppWindow inherits Window {
     callback use-job-application(int);
     callback submit-job-application <=> job-application-submit.clicked;
     callback new-job-application();
+    callback delete-job-application(int);
     pure callback date-diff(Date, Date) -> int;
     
     // Properties
@@ -391,19 +392,42 @@ export component AppWindow inherits Window {
             }
 
             Row {
-                job-application-new := Button {
-                    height: 2rem;
-                    text: "New";
-                    clicked => {
-                        // Call the backend code to change the sidebar
-                        new-job-application();
-                        re-bind-selected();
-                    }
-                }
+                // For this row, instead of using the same two columns, we will put all the buttons in their own horizontal layout.
+                // This allows 2 columns for the rest, but 3 independent columns here
+                HorizontalLayout {
+                    colspan: 2;
+                    spacing: 5px;
 
-                job-application-submit := StandardButton {
-                    height: 2rem;
-                    kind: apply;
+                    job-application-new := Button {
+                        height: 2rem;
+                        text: "New";
+                        clicked => {
+                            // Call the backend code to change the sidebar
+                            new-job-application();
+                            re-bind-selected();
+                        }
+                    }
+
+                    job-application-delete := Button {
+                        height: 2rem;
+                        text: "Delete";
+                        clicked => {
+                            // Do nothing if there is no selected job application
+                            if (selected-job-application.id == 0) {
+                                return;
+                            }
+
+                            // TODO: Prompt for confirmation
+                            
+                            // Send delete to callback
+                            delete-job-application(selected-job-application.id);
+                        }
+                    }
+
+                    job-application-submit := StandardButton {
+                        height: 2rem;
+                        kind: apply;
+                    }
                 }
             }
         }
