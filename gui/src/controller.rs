@@ -215,6 +215,7 @@ fn select_row<C: JobApplicationRepository>(conn: &mut C, ui: AppWindow, applicat
     };
 }
 
+/// Clear the selected job application, automatically filling in dates as today
 fn reset_selected_row(ui: &AppWindow) {
     ui.set_selected_job_application(JobApplicationView {
         // Application date should be today
