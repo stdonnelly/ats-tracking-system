@@ -2,7 +2,9 @@
 
 use std::{cell::RefCell, iter::once, ops::DerefMut, rc::Rc};
 
-use crate::model::{self, get_today_as_slint_date, AppWindow, JobApplicationView};
+use crate::model::{
+    self, get_today_as_slint_date, AppWindow, DeleteConfirmation, JobApplicationView,
+};
 use repository::{
     job_application_model::JobApplication, job_application_repository::JobApplicationRepository,
 };
@@ -114,9 +116,7 @@ where
 
     ui.on_delete_job_application(move |id: i32| {
         if let Some(ui) = ui_clone.upgrade() {
-            if let Err(e) =
-                delete_job_application(RefCell::borrow_mut(&conn_clone).deref_mut(), &ui, id)
-            {
+            if let Err(e) = delete_confirmation(&conn_clone, &ui, id) {
                 // Print any errors, but otherwise discard them.
                 // We may want to actually do something with these errors later, though
                 eprintln!("{e}");
@@ -331,6 +331,7 @@ fn submit_job_application<C: JobApplicationRepository>(
     Ok(())
 }
 
+/// Delete a job application using the repository, then remove the application from the displayed table
 fn delete_job_application<C: JobApplicationRepository>(
     conn: &mut C,
     ui: &AppWindow,
@@ -356,6 +357,77 @@ fn delete_job_application<C: JobApplicationRepository>(
     });
 
     ui.set_table_rows(ModelRc::new(filtered));
+
+    Ok(())
+}
+
+/// Create a dialog box to confirm if the job application should be deleted
+fn delete_confirmation<C>(
+    conn: &Rc<RefCell<C>>,
+    ui: &AppWindow,
+    id: i32,
+) -> Result<(), Box<dyn std::error::Error>>
+where
+    C: JobApplicationRepository + 'static,
+{
+    // Create the window
+    let dialog_window: DeleteConfirmation = DeleteConfirmation::new()?;
+    dialog_window.set_id(id);
+
+    // This is used to check for memory leaks
+    // This should make it clear if the references are dropped after a dialog window is hidden
+    #[cfg(debug_assertions)]
+    println!("conn strong references: {}", Rc::strong_count(conn));
+
+    // Handle "cancel"
+    {
+        let dialog_window_clone = dialog_window.as_weak();
+        dialog_window.on_cancel_clicked(move || {
+            // Close window
+            if let Some(dialog_window) = dialog_window_clone.upgrade() {
+                dialog_window
+                    .hide()
+                    .expect("Error closing delete confirmation dialog window");
+            } else {
+                println!("Cannot close dialog window because it doesn't exist")
+            }
+        });
+    }
+
+    // Handle "delete"
+    {
+        // Get references for parent function variables
+        let dialog_window_clone = dialog_window.as_weak();
+        let conn_clone = Rc::clone(conn);
+        let ui_clone = ui.as_weak();
+
+        // Handle delete button
+        dialog_window.on_delete_clicked(move || {
+            // Delete
+            if let Some(ui) = ui_clone.upgrade() {
+                if let Err(e) =
+                    delete_job_application(RefCell::borrow_mut(&conn_clone).deref_mut(), &ui, id)
+                {
+                    // Print any errors, but otherwise discard them.
+                    // We may want to actually do something with these errors later, though
+                    eprintln!("{e}");
+                }
+            } else {
+                eprintln!("Error deleting job application: AppWindow no longer exists");
+            }
+
+            // Close window
+            if let Some(dialog_window) = dialog_window_clone.upgrade() {
+                dialog_window
+                    .hide()
+                    .expect("Error closing delete confirmation dialog window")
+            } else {
+                println!("Cannot close dialog window because it doesn't exist")
+            }
+        });
+    }
+
+    dialog_window.show()?;
 
     Ok(())
 }
