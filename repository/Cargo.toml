@@ -11,7 +11,7 @@ mysql = ["dep:mysql"]
 [dependencies]
 mysql = { version = "25.0.1", optional = true }
 time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
-rusqlite = { version = "0.32.1", features = ["bundled", "time"] }
+rusqlite = { version = "0.33.0", features = ["bundled", "time"] }
 
 [dev-dependencies]
 tempfile = "3.15.0"
