@@ -100,7 +100,23 @@ export component AppWindow inherits Window {
     }
 
     // Properties of the window
-    preferred-width: 1024px;
+    preferred-width: max(
+        1024px,
+        // Sidebar: spacing + padding (left and right) + columns
+	sidebar.spacing + (2 * sidebar.padding) + sidebar.col-1-min-width + source-input.min-width
+	// Table: Sum of all column widths
+	    + table-view.columns[0].min-width
+	    + table-view.columns[1].min-width
+	    + table-view.columns[2].min-width
+	    + table-view.columns[3].min-width
+	    + table-view.columns[4].min-width
+	    + table-view.columns[5].min-width
+	    + table-view.columns[6].min-width
+	    + table-view.columns[7].min-width
+	    + table-view.columns[8].min-width
+	    + table-view.columns[9].min-width
+	    + table-view.columns[10].min-width
+    );
     preferred-height: 512px;
     title: "ATS Tracking System";
 
@@ -109,10 +125,12 @@ export component AppWindow inherits Window {
         width: 100%;
 
         // Left sidebar that displays all information about the currently selected element
-        GridLayout {
+        sidebar := GridLayout {
             width: 20%;
             spacing: 5px;
             padding: 5px;
+	    property <length> col-1-min-width: 6.5rem;
+
             Row {
                 Text {
                     text: "ID";
@@ -120,7 +138,7 @@ export component AppWindow inherits Window {
                     wrap: word-wrap;
                     // This sets the minimum width for this entire column.
                     // This is necessary because slint sometimes displays the second column over this one instead of just causing the second column to wrap.
-                    min-width: 6rem;
+                    min-width: col-1-min-width;
                 }
 
                 Text {
@@ -400,9 +418,11 @@ export component AppWindow inherits Window {
                 HorizontalLayout {
                     colspan: 2;
                     spacing: 5px;
+		    // Set the height of this element to the default `min-value` of `Button`.
+		    // This is necessary because `StandardButton` sometimes makes weird changes to the height
+		    height: job-application-new.min-height;
 
                     job-application-new := Button {
-                        height: 2rem;
                         text: "New";
                         clicked => {
                             // Call the backend code to change the sidebar
@@ -411,7 +431,6 @@ export component AppWindow inherits Window {
                     }
 
                     job-application-delete := Button {
-                        height: 2rem;
                         text: "Delete";
                         clicked => {
                             // Do nothing if there is no selected job application
@@ -419,15 +438,13 @@ export component AppWindow inherits Window {
                                 return;
                             }
 
-                            // TODO: Prompt for confirmation
-                            
                             // Send delete to callback
+			    // The callback will prompt for confirmation
                             delete-job-application(selected-job-application.id);
                         }
                     }
 
                     job-application-submit := StandardButton {
-                        height: 2rem;
                         kind: apply;
                     }
                 }
@@ -435,7 +452,7 @@ export component AppWindow inherits Window {
         }
 
         // The table
-        StandardTableView {
+        table-view := StandardTableView {
             current-row-changed(current-row) => {
                 // Call the backend code to change the sidebar
                 use-job-application(table-rows[current-row][0].text.to-float());
@@ -445,17 +462,17 @@ export component AppWindow inherits Window {
             height: 100%;
             columns: [
                 // Column titles have manually added newlines because there is no automatic word-wrap for column titles
-                { title: "ID", min-width: 4rem },
-                { title: "Source", min-width: 6rem },
-                { title: "Company", min-width: 7rem },
-                { title: "Job Title", min-width: 7rem },
-                { title: "Application\nDate", min-width: 7rem },
-                { title: "Time\nTaken", min-width: 5rem },
+                { title: "ID", min-width: 4.5rem },
+                { title: "Source", min-width: 7rem },
+                { title: "Company", min-width: 8.5rem },
+                { title: "Job Title", min-width: 7.5rem },
+                { title: "Application\nDate", min-width: 9rem },
+                { title: "Time\nTaken", min-width: 6.5rem },
                 { title: "Human\nResponse", min-width: 10rem },
-                { title: "Date", min-width: 7rem },
-                { title: "Days to\nRespond", min-width: 7rem },
-                { title: "Website", min-width: 7rem },
-                { title: "Notes", min-width: 5rem },
+                { title: "Response\nDate", min-width: 9rem },
+                { title: "Days to\nRespond", min-width: 8rem },
+                { title: "Website", min-width: 7.5rem },
+                { title: "Notes", min-width: 7rem },
             ];
             rows: table-rows;
         }
