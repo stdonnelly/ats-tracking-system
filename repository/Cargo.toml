@@ -9,7 +9,7 @@ repository.workspace = true
 mysql = ["dep:mysql"]
 
 [dependencies]
-mysql = { version = "25.0.1", optional = true }
+mysql = { version = "26.0.0", features = ["default", "time"], optional = true }
 time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
 rusqlite = { version = "0.33.0", features = ["bundled", "time"] }
 
