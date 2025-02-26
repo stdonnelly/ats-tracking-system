@@ -23,7 +23,9 @@ pub trait JobApplicationRepository {
     fn get_job_applications(&mut self) -> Result<Vec<JobApplication>, Self::Error>;
 
     /// Get all job applications where `human_response == None`
-    fn get_pending_job_applications(&mut self) -> Result<Vec<JobApplication>, Self::Error>;
+    fn get_pending_job_applications(&mut self) -> Result<Vec<JobApplication>, Self::Error> {
+        self.search_by_human_response(HumanResponse::None)
+    }
 
     /// Get the job application matching the specified `id`
     fn get_job_application_by_id(&mut self, id: i32)
@@ -31,6 +33,19 @@ pub trait JobApplicationRepository {
 
     /// Get all job application where source, company, or job_title contains `query`. Case insensitive.
     fn search_job_applications(&mut self, query: &str) -> Result<Vec<JobApplication>, Self::Error>;
+
+    /// Get all job applications with a certain human response
+    fn search_by_human_response(
+        &mut self,
+        human_response: HumanResponse,
+    ) -> Result<Vec<JobApplication>, Self::Error>;
+
+    /// Get all job applications that matches a given human response AND a given search query
+    fn search_by_query_and_human_response(
+        &mut self,
+        query: &str,
+        human_response: HumanResponse,
+    ) -> Result<Vec<JobApplication>, Self::Error>;
 
     /// Insert a new job application, returning the new application with generated `id` and `application_date`.
     ///

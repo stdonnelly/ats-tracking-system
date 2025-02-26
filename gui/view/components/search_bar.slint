@@ -4,7 +4,7 @@ import { HumanResponseView } from "../models.slint";
 import { Logic } from "../functions.slint";
 
 export component SearchBar inherits HorizontalBox {
-    callback search(human-response: HumanResponseView, query: string);
+    callback search(by-human-response: bool, human-response: HumanResponseView, query: string);
     out property <length> search-bar-min-width:
         self.padding-left
         + self.padding-right
@@ -19,7 +19,7 @@ export component SearchBar inherits HorizontalBox {
     // Filter by human response
     human-response := ComboBox {
         model: [
-            "Filter by response",
+            "- Filter by response -",
             "No response yet",
             "Rejection",
             "Interview request",
@@ -38,6 +38,8 @@ export component SearchBar inherits HorizontalBox {
         text: "Search";
         clicked => {
             search(
+                // Only use human response when the index is valid and the selected value is not "- Filter by response -"
+                human-response.current-index > 0,
                 Logic.string-to-human-response(human-response.current-value),
                 search-box.text
             );

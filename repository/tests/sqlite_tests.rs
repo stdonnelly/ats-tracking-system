@@ -390,6 +390,18 @@ fn test_search_job_applications() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// Test [JobApplicationRepository::search_by_human_response]
+#[test]
+fn test_search_by_human_response() -> Result<(), Box<dyn std::error::Error>> {
+    todo!()
+}
+
+/// Test [JobApplicationRepository::search_by_query_and_human_response]
+#[test]
+fn test_search_by_query_and_human_response() -> Result<(), Box<dyn std::error::Error>> {
+    todo!()
+}
+
 /// Test [JobApplicationRepository::insert_job_application]
 #[test]
 fn test_insert_job_application() -> Result<(), Box<dyn std::error::Error>> {

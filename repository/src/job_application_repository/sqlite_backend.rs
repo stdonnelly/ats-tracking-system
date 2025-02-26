@@ -19,16 +19,6 @@ impl JobApplicationRepository for Connection {
         )
     }
 
-    fn get_pending_job_applications(&mut self) -> Result<Vec<JobApplication>, Self::Error> {
-        execute_query(
-            self,
-            "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes \
-            FROM job_applications \
-            WHERE human_response = 'N'",
-            ()
-        )
-    }
-
     fn get_job_application_by_id(
         &mut self,
         id: i32,
@@ -55,6 +45,40 @@ impl JobApplicationRepository for Connection {
             OR LOWER(company) LIKE ?1 \
             OR LOWER(job_title) LIKE ?1",
         (query_with_wildcards,)
+        )
+    }
+
+    fn search_by_human_response(
+        &mut self,
+        human_response: HumanResponse,
+    ) -> Result<Vec<JobApplication>, Self::Error> {
+        execute_query(
+            self,
+            "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes \
+            FROM job_applications \
+            WHERE human_response = ?",
+            (human_response,)
+        )
+    }
+
+    fn search_by_query_and_human_response(
+        &mut self,
+        query: &str,
+        human_response: HumanResponse,
+    ) -> Result<Vec<JobApplication>, Self::Error> {
+        // Add wildcards to query
+        let query_with_wildcards = "%".to_owned() + &query.to_lowercase() + "%";
+
+        execute_query(
+            self,
+            "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes \
+            FROM job_applications \
+            WHERE ( \
+                LOWER(source) LIKE ?1 \
+                OR LOWER(company) LIKE ?1 \
+                OR LOWER(job_title) LIKE ?1 \
+            ) AND human_response = ?2",
+        (query_with_wildcards, human_response)
         )
     }
 
