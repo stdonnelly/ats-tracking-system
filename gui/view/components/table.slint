@@ -1,0 +1,41 @@
+import { StandardTableView } from "std-widgets.slint";
+
+export component JobApplicationTable inherits StandardTableView {
+    in-out property <[[StandardListViewItem]]> table-rows;
+    callback re-bind-selected();
+    callback use-job-application(int);
+    out property <length> table-min-width: self.columns[0].min-width
+        + self.columns[1].min-width
+        + self.columns[2].min-width
+        + self.columns[3].min-width
+        + self.columns[4].min-width
+        + self.columns[5].min-width
+        + self.columns[6].min-width
+        + self.columns[7].min-width
+        + self.columns[8].min-width
+        + self.columns[9].min-width
+        + self.columns[10].min-width;
+
+    current-row-changed(current-row) => {
+        // Call the backend code to change the sidebar
+        use-job-application(table-rows[current-row][0].text.to-float());
+        re-bind-selected();
+    }
+    width: 80%;
+    height: 100%;
+    columns: [
+        // Column titles have manually added newlines because there is no automatic word-wrap for column titles
+        { title: "ID", min-width: 4.5rem },
+        { title: "Source", min-width: 7rem },
+        { title: "Company", min-width: 8.5rem },
+        { title: "Job Title", min-width: 7.5rem },
+        { title: "Application\nDate", min-width: 9rem },
+        { title: "Time\nTaken", min-width: 6.5rem },
+        { title: "Human\nResponse", min-width: 10rem },
+        { title: "Response\nDate", min-width: 9rem },
+        { title: "Days to\nRespond", min-width: 8rem },
+        { title: "Website", min-width: 7.5rem },
+        { title: "Notes", min-width: 7rem },
+    ];
+    rows: table-rows;
+}

@@ -6,11 +6,12 @@ import { DeleteConfirmation } from "./delete_confirmation.slint";
 import { HumanResponseView, JobApplicationView } from "./models.slint";
 import { Logic } from "./functions.slint";
 import { Sidebar } from "components/sidebar.slint";
+import { JobApplicationTable } from "components/table.slint";
 export { DeleteConfirmation, HumanResponseView, JobApplicationView }
 
 export component AppWindow inherits Window {
     // Callbacks
-    callback use-job-application(int);
+    callback use-job-application <=> table-view.use-job-application;
     // Re-exported from sidebar
     callback submit-job-application <=> sidebar.submit-job-application;
     callback new-job-application <=> sidebar.new-job-application;
@@ -32,19 +33,7 @@ export component AppWindow inherits Window {
     // Properties of the window
     preferred-width: max(
         1024px,
-        + sidebar.sidebar-min-width
-        // Table: Sum of all column widths
-        + table-view.columns[0].min-width
-        + table-view.columns[1].min-width
-        + table-view.columns[2].min-width
-        + table-view.columns[3].min-width
-        + table-view.columns[4].min-width
-        + table-view.columns[5].min-width
-        + table-view.columns[6].min-width
-        + table-view.columns[7].min-width
-        + table-view.columns[8].min-width
-        + table-view.columns[9].min-width
-        + table-view.columns[10].min-width
+        sidebar.sidebar-min-width + table-view.table-min-width
     );
     preferred-height: 512px;
     title: "ATS Tracking System";
@@ -59,29 +48,9 @@ export component AppWindow inherits Window {
         }
 
         // The table
-        table-view := StandardTableView {
-            current-row-changed(current-row) => {
-                // Call the backend code to change the sidebar
-                use-job-application(table-rows[current-row][0].text.to-float());
-                re-bind-selected();
-            }
-            width: 80%;
-            height: 100%;
-            columns: [
-                // Column titles have manually added newlines because there is no automatic word-wrap for column titles
-                { title: "ID", min-width: 4.5rem },
-                { title: "Source", min-width: 7rem },
-                { title: "Company", min-width: 8.5rem },
-                { title: "Job Title", min-width: 7.5rem },
-                { title: "Application\nDate", min-width: 9rem },
-                { title: "Time\nTaken", min-width: 6.5rem },
-                { title: "Human\nResponse", min-width: 10rem },
-                { title: "Response\nDate", min-width: 9rem },
-                { title: "Days to\nRespond", min-width: 8rem },
-                { title: "Website", min-width: 7.5rem },
-                { title: "Notes", min-width: 7rem },
-            ];
-            rows: table-rows;
+        table-view := JobApplicationTable {
+            table-rows <=> table-rows;
+            re-bind-selected() => { re-bind-selected(); }
         }
     }
 }
