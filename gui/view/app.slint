@@ -7,6 +7,7 @@ import { HumanResponseView, JobApplicationView } from "./models.slint";
 import { Logic } from "./functions.slint";
 import { Sidebar } from "components/sidebar.slint";
 import { JobApplicationTable } from "components/table.slint";
+import { SearchBar } from "components/search_bar.slint";
 export { DeleteConfirmation, HumanResponseView, JobApplicationView }
 
 export component AppWindow inherits Window {
@@ -16,6 +17,8 @@ export component AppWindow inherits Window {
     callback submit-job-application <=> sidebar.submit-job-application;
     callback new-job-application <=> sidebar.new-job-application;
     callback delete-job-application <=> sidebar.delete-job-application;
+    // Re-exported from search bar
+    callback search-job-application <=> search-bar.search;
     // date-diff(Date, Date) is aliased here do the rust code only needs to access this component for anything related to this component
     // Other components can just bind to Logic.date-diff and it will use the definition here
     pure callback date-diff <=> Logic.date-diff;
@@ -33,7 +36,7 @@ export component AppWindow inherits Window {
     // Properties of the window
     preferred-width: max(
         1024px,
-        sidebar.sidebar-min-width + table-view.table-min-width
+        sidebar.sidebar-min-width + max(search-bar.search-bar-min-width, table-view.table-min-width)
     );
     preferred-height: 512px;
     title: "ATS Tracking System";
@@ -47,10 +50,16 @@ export component AppWindow inherits Window {
             selected-job-application <=> selected-job-application;
         }
 
-        // The table
-        table-view := JobApplicationTable {
-            table-rows <=> table-rows;
-            re-bind-selected() => { re-bind-selected(); }
+        // Table and search bar
+        VerticalLayout {
+            // The search bar
+            search-bar := SearchBar {}
+
+            // The table
+            table-view := JobApplicationTable {
+                table-rows <=> table-rows;
+                re-bind-selected() => { re-bind-selected(); }
+            }
         }
     }
 }
