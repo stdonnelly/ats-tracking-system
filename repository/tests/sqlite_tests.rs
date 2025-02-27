@@ -393,13 +393,213 @@ fn test_search_job_applications() -> Result<(), Box<dyn std::error::Error>> {
 /// Test [JobApplicationRepository::search_by_human_response]
 #[test]
 fn test_search_by_human_response() -> Result<(), Box<dyn std::error::Error>> {
-    todo!()
+    let mut conn = get_memory_connection()?;
+
+    // Base job application
+    // We will only be checking id and human_response
+    let job_application = JobApplication {
+        id: 0,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    conn.execute(
+        "INSERT INTO job_applications (id, source, company, job_title, application_date, human_response) \
+        VALUES (1, :source, :company, :job_title, :application_date, :human_response1), \
+        (2, :source, :company, :job_title, :application_date, :human_response2), \
+        (3, :source, :company, :job_title, :application_date, :human_response3), \
+        (4, :source, :company, :job_title, :application_date, :human_response4), \
+        (5, :source, :company, :job_title, :application_date, :human_response5)",
+        named_params! {
+            ":source": job_application.source,
+            ":company": job_application.company,
+            ":job_title": job_application.job_title,
+            ":application_date": job_application.application_date,
+            ":human_response1": HumanResponse::None,
+            ":human_response2": HumanResponse::Rejection,
+            ":human_response3": HumanResponse::InterviewRequest,
+            ":human_response4": HumanResponse::InterviewedThenRejected,
+            ":human_response5": HumanResponse::JobOffer,
+        }
+    )?;
+
+    assert_eq!(
+        conn.search_by_human_response(HumanResponse::None)?,
+        vec![JobApplication {
+            id: 1,
+            human_response: HumanResponse::None,
+            ..job_application.clone()
+        }],
+    );
+
+    assert_eq!(
+        conn.search_by_human_response(HumanResponse::Rejection)?,
+        vec![JobApplication {
+            id: 2,
+            human_response: HumanResponse::Rejection,
+            ..job_application.clone()
+        }],
+    );
+
+    assert_eq!(
+        conn.search_by_human_response(HumanResponse::InterviewRequest)?,
+        vec![JobApplication {
+            id: 3,
+            human_response: HumanResponse::InterviewRequest,
+            ..job_application.clone()
+        }],
+    );
+
+    assert_eq!(
+        conn.search_by_human_response(HumanResponse::InterviewedThenRejected)?,
+        vec![JobApplication {
+            id: 4,
+            human_response: HumanResponse::InterviewedThenRejected,
+            ..job_application.clone()
+        }],
+    );
+
+    assert_eq!(
+        conn.search_by_human_response(HumanResponse::JobOffer)?,
+        vec![JobApplication {
+            id: 5,
+            human_response: HumanResponse::JobOffer,
+            ..job_application.clone()
+        }],
+    );
+
+    Ok(())
 }
 
 /// Test [JobApplicationRepository::search_by_query_and_human_response]
 #[test]
 fn test_search_by_query_and_human_response() -> Result<(), Box<dyn std::error::Error>> {
-    todo!()
+    let mut conn = get_memory_connection()?;
+
+    // Search string and a case-inverted version
+    let search_string = "SeArCh StRiNg";
+    let search_string_invert_case = "sEaRcH sTrInG";
+
+    // Base job application without search string
+    let job_application_base = JobApplication {
+        id: 1,
+        source: "Test source".to_string(),
+        company: "Test company".to_string(),
+        job_title: "Test job title".to_string(),
+        application_date: Date::from_calendar_date(2000, Month::January, 1).unwrap(),
+        time_investment: None,
+        human_response: HumanResponse::None,
+        human_response_date: None,
+        application_website: None,
+        notes: None,
+    };
+
+    // Id for the base job application, which should not match
+    let JobApplication { id: id_base, .. } = conn.insert_job_application(&job_application_base)?;
+
+    // Id for job application where source matches
+    let JobApplication { id: id_source, .. } = conn.insert_job_application(&JobApplication {
+        source: "aaa".to_string() + search_string + "bbb",
+        ..job_application_base.clone()
+    })?;
+
+    // Id for job application where company matches
+    let JobApplication { id: id_company, .. } = conn.insert_job_application(&JobApplication {
+        company: "aaa".to_string() + search_string,
+        ..job_application_base.clone()
+    })?;
+
+    // Id for job application where job_title matches
+    let JobApplication {
+        id: id_job_title, ..
+    } = conn.insert_job_application(&JobApplication {
+        job_title: search_string.to_string(),
+        ..job_application_base.clone()
+    })?;
+
+    // Id for a job application where the search query matches but not the human response
+    let JobApplication {
+        id: id_query_match_human_response_mismatch,
+        ..
+    } = conn.insert_job_application(&JobApplication {
+        source: "aaa".to_string() + search_string,
+        human_response: HumanResponse::Rejection,
+        ..job_application_base.clone()
+    })?;
+
+    let job_applications =
+        conn.search_by_query_and_human_response(&search_string, HumanResponse::None)?;
+
+    // Assert all job applications that should match do match
+    for (name, id) in [
+        ("source", id_source),
+        ("company", id_company),
+        ("job_title", id_job_title),
+    ] {
+        assert!(
+            job_applications
+                .iter()
+                .any(|job_application| job_application.id == id),
+            "{name} should produce a match"
+        );
+    }
+
+    // And the base does not match
+    assert!(
+        !job_applications
+            .iter()
+            .any(|job_application| job_application.id == id_base),
+        "The base job application should produce a match"
+    );
+
+    // Assert the incorrect human response does not match
+    assert!(
+        !job_applications
+            .iter()
+            .any(|job_application| job_application.id == id_query_match_human_response_mismatch),
+        "The job application where the query matches but not the human response should not match"
+    );
+
+    // Do the same for when the query would not match if it was case sensitive
+    let job_applications_inverted_query =
+        conn.search_by_query_and_human_response(&search_string_invert_case, HumanResponse::None)?;
+
+    for (name, id) in [
+        ("source", id_source),
+        ("company", id_company),
+        ("job_title", id_job_title),
+    ] {
+        assert!(
+            job_applications_inverted_query
+                .iter()
+                .any(|job_application| job_application.id == id),
+            "{name} should produce a match, even though the case does not match"
+        );
+    }
+
+    assert!(
+        !job_applications_inverted_query
+            .iter()
+            .any(|job_application| job_application.id == id_base),
+        "The base job application should produce a match"
+    );
+
+    // Assert the incorrect human response does not match
+    assert!(
+        !job_applications_inverted_query
+            .iter()
+            .any(|job_application| job_application.id == id_query_match_human_response_mismatch),
+        "The job application where the query matches but not the human response should not match"
+    );
+
+    Ok(())
 }
 
 /// Test [JobApplicationRepository::insert_job_application]
