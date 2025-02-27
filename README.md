@@ -7,7 +7,7 @@ The applicant tracking system tracking system
 The name is a slight misnomer, as this tracks job applications and employers, not the ATSs they use.
 This application is designed to track each job application.
 This was created because, at the time of writing, landing a software development job requires numerous applications.
-Because most employers receive numerous applications, many elect to use applicant tracking systems \[ATS\]s
+Because most employers receive numerous applications, many elect to use applicant tracking systems \[ATS\]s.
 Many applications do not even receive a response, making this a useful tool for determining where to send follow-ups, assuming the applicant is willing to follow up.
 
 ## Building
@@ -62,26 +62,24 @@ This is mainly for me to become more familiar with the language.
 This is the default as of version 0.3.0.
 MySQL is still available using the feature `repository/mysql`.
 This has been added because this application does not need an actual SQL server, which add complexity in deployment.
- As an added benefit, SQLite is easier to test because I can create in-memory SQLite databases.
+As an added benefit, SQLite is easier to test because I can create in-memory SQLite databases.
 
 #### MySQL or MariaDB
 
 MariaDB is simple to install on Linux and set up.
 All data this project will likely involve easily fits into ordinary SQL tables.
-At the time of writing this, the only data that needs to be stored is whatever is related t each job application and maybe login information if this becomes a webapp.
+At the time of writing this, the only data that needs to be stored is whatever is related to each job application and maybe login information if this becomes a webapp.
 
 ### Frontend
 
 #### CLI
 
-This was the first interface that was made. It can still be used with the executable`ats-tracking-cli`.
+This was the first interface that was made. It can still be used with the executable `ats-tracking-cli`.
 
 #### GUI
 
-There is now (as of version 0.2.0) a graphical interface, with the executable`ats-tracking`.
+There is now (as of version 0.2.0) a graphical interface, with the executable `ats-tracking`.
 This uses [Slint](https://slint.dev/).
-Currently, there are some features present in the CLI version, but not the GUI version.
-Some of these features are irrelevant to the GUI (i.e. a partial update is unnecessary because the app can just pre-fill the form).
 
 ## License
 
@@ -91,3 +89,5 @@ Any derivatives of this project that include Slint need to use one of the [Slint
 ## Footnotes
 
 [^1]: Because the function that finds the home directory is not implemented correctly for Rust <= 1.84, the `ats-tracking.db3` may be placed in the wrong directory on Windows, or the application may fail to run. macOS, Linux, and other Unix-like operating systems are unaffected. See the deprecation notice on [home_dir](https://doc.rust-lang.org/1.84.0/std/env/fn.home_dir.html#deprecation)
+This was fixed in Rust 1.85 and the deprecation notice will probably be removed in Rust 1.86.
+If the deprecation notice is removed on the latest stable version, I will remove the directive to ignore the warning.
