@@ -9,7 +9,8 @@ use std::{cell::RefCell, error::Error, ops::DerefMut, rc::Rc};
 
 use controller::{
     handle_date_diff, handle_delete_job_application, handle_new_job_application,
-    handle_submit_job_application, handle_use_job_application, init_ui,
+    handle_search_job_application, handle_submit_job_application, handle_use_job_application,
+    init_ui,
 };
 use dotenv::dotenv;
 use slint::ComponentHandle as _;
@@ -34,6 +35,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     handle_new_job_application(&ui);
     handle_delete_job_application(&conn, &ui);
     handle_date_diff(&ui);
+    handle_search_job_application(&conn, &ui);
 
     // Finally, run the UI
     ui.run()?;

@@ -17,14 +17,6 @@ where
     )
     }
 
-    fn get_pending_job_applications(&mut self) -> Result<Vec<JobApplication>, mysql::Error> {
-        self.query(
-        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
-        FROM job_applications
-        WHERE human_response = 'N'"
-    )
-    }
-
     fn get_job_application_by_id(
         &mut self,
         id: i32,
@@ -50,6 +42,40 @@ where
         OR LOWER(company) LIKE :query
         OR LOWER(job_title) LIKE :query",
         params! {"query" => query_with_wildcards}
+    )
+    }
+
+    fn search_by_human_response(
+        &mut self,
+        human_response: HumanResponse,
+    ) -> Result<Vec<JobApplication>, mysql::Error> {
+        self.exec(
+        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
+        FROM job_applications
+        WHERE human_response = :human_response",
+        params! {"human_response" => &human_response}
+    )
+    }
+
+    fn search_by_query_and_human_response(
+        &mut self,
+        query: &str,
+        human_response: HumanResponse,
+    ) -> Result<Vec<JobApplication>, mysql::Error> {
+        // Add wildcards to the beginning and end of the query
+        let query_with_wildcards = "%".to_owned() + &query.to_lowercase() + "%";
+        self.exec(
+        "SELECT id, source, company, job_title, application_date, time_investment, human_response, human_response_date, application_website, notes
+        FROM job_applications
+        WHERE (
+            LOWER(source) LIKE :query
+            OR LOWER(company) LIKE :query
+            OR LOWER(job_title) LIKE :query
+        ) AND human_response = :human_response",
+        params! {
+            "query" => query_with_wildcards,
+            "human_response" => &human_response
+        }
     )
     }
 

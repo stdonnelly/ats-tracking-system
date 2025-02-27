@@ -1,0 +1,48 @@
+import { HorizontalBox, ComboBox, LineEdit, Button } from "std-widgets.slint";
+
+import { HumanResponseView } from "../models.slint";
+import { Logic } from "../functions.slint";
+
+export component SearchBar inherits HorizontalBox {
+    callback search(by-human-response: bool, human-response: HumanResponseView, query: string);
+    out property <length> search-bar-min-width:
+        self.padding-left
+        + self.padding-right
+        + (self.spacing * 2)
+        + human-response.min-width
+        + search-box.min-width
+        + search-button.min-width;
+
+    // Align to right side
+    alignment: end;
+
+    // Filter by human response
+    human-response := ComboBox {
+        model: [
+            "- Filter by response -",
+            "No response yet",
+            "Rejection",
+            "Interview request",
+            "Interviewed then rejected",
+            "Job offer"
+        ];
+        current-index: 0;
+    }
+
+    // Search by source, company, or human response
+    search-box := LineEdit {
+        placeholder-text: "Search by text";
+    }
+
+    search-button := Button {
+        text: "Search";
+        clicked => {
+            search(
+                // Only use human response when the index is valid and the selected value is not "- Filter by response -"
+                human-response.current-index > 0,
+                Logic.string-to-human-response(human-response.current-value),
+                search-box.text
+            );
+        }
+    }
+}

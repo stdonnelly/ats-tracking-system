@@ -3,13 +3,16 @@
 use std::{cell::RefCell, iter::once, ops::DerefMut, rc::Rc};
 
 use crate::model::{
-    self, get_today_as_slint_date, AppWindow, DeleteConfirmation, JobApplicationView,
+    self, get_today_as_slint_date, AppWindow, DeleteConfirmation, HumanResponseView,
+    JobApplicationView,
 };
 use repository::{
-    job_application_model::JobApplication, job_application_repository::JobApplicationRepository,
+    job_application_model::{HumanResponse, JobApplication},
+    job_application_repository::JobApplicationRepository,
 };
 use slint::{
-    ComponentHandle, Model, ModelExt, ModelRc, StandardListViewItem, ToSharedString, VecModel,
+    ComponentHandle, Model, ModelExt, ModelRc, SharedString, StandardListViewItem, ToSharedString,
+    VecModel,
 };
 
 // Public functions
@@ -26,16 +29,7 @@ pub fn init_ui<C: JobApplicationRepository>(conn: &mut C, ui: &AppWindow) {
             Vec::default()
         });
 
-    // Initialize vec model to map to
-    let table_rows: VecModel<ModelRc<StandardListViewItem>> = VecModel::default();
-
-    // Map the applications to `table_rows`
-    for application in all_applications {
-        table_rows.push(job_application_into_row(&application));
-    }
-
-    // Set the table rows
-    ui.set_table_rows(ModelRc::new(table_rows));
+    update_table(ui, all_applications);
 
     // Finally, reset the sidebar
     reset_selected_row(ui);
@@ -155,6 +149,49 @@ pub fn handle_date_diff(ui: &AppWindow) {
             }
         }
     });
+}
+
+/// Handle the callback for `search-job-application`
+///
+/// Queries the database using the search parameters and updates the table
+pub fn handle_search_job_application<C>(conn: &Rc<RefCell<C>>, ui: &AppWindow)
+where
+    C: JobApplicationRepository + 'static,
+{
+    let conn_clone = Rc::clone(conn);
+    let ui_clone = ui.as_weak();
+
+    ui.on_search_job_application(
+        move |by_human_response: bool,
+              human_response_view: HumanResponseView,
+              query: SharedString| {
+            if let Some(ui) = ui_clone.upgrade() {
+                // Only use the human response if `by_human_response`
+                // `None` indicates any
+                let human_response: Option<HumanResponse> = if by_human_response {
+                    Some(human_response_view.into())
+                } else {
+                    None
+                };
+
+                // Same with search query: Only use if nonempty
+                let search_query: Option<&str> = if query.is_empty() { None } else { Some(&query) };
+
+                if let Err(e) = search_job_application(
+                    RefCell::borrow_mut(&conn_clone).deref_mut(),
+                    &ui,
+                    human_response,
+                    search_query,
+                ) {
+                    // Print any errors, but otherwise discard them.
+                    // We may want to actually do something with these errors later, though
+                    eprintln!("{e}");
+                }
+            } else {
+                eprintln!("Error submitting job application: AppWindow no longer exists");
+            }
+        },
+    );
 }
 
 // Helper functions
@@ -431,4 +468,43 @@ where
     dialog_window.show()?;
 
     Ok(())
+}
+
+/// Search for job applications, given a human response to filter by and a search query
+///
+/// Both are optional. If a parameter is `None`, that parameter is ignored
+fn search_job_application<C: JobApplicationRepository>(
+    conn: &mut C,
+    ui: &AppWindow,
+    human_response: Option<HumanResponse>,
+    search_query: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
+    // Get job applications using the above options
+    // This is probably not a very efficient way of doing things, but there are only 2 optional parameters
+    let job_applications = match (human_response, search_query) {
+        (None, None) => conn.get_job_applications(),
+        (None, Some(search_string)) => conn.search_job_applications(search_string),
+        (Some(human_response), None) => conn.search_by_human_response(human_response),
+        (Some(human_response), Some(search_string)) => {
+            conn.search_by_query_and_human_response(search_string, human_response)
+        }
+    }?;
+
+    // Use the new job application list to update the table
+    update_table(ui, job_applications);
+    Ok(())
+}
+
+/// Update the displayed job application table with the given vector of job applications
+fn update_table(ui: &AppWindow, job_applications: Vec<JobApplication>) {
+    // Initialize vec model to map to
+    let table_rows: VecModel<ModelRc<StandardListViewItem>> = VecModel::default();
+
+    // Map the applications to `table_rows`
+    for application in job_applications {
+        table_rows.push(job_application_into_row(&application));
+    }
+
+    // Set the table rows
+    ui.set_table_rows(ModelRc::new(table_rows));
 }

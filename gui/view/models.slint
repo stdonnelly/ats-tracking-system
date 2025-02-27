@@ -1,0 +1,22 @@
+import { Date } from "std-widgets.slint";
+
+export enum HumanResponseView {
+    None,
+    Rejection,
+    InterviewRequest,
+    InterviewedThenRejected,
+    JobOffer,
+}
+
+export struct JobApplicationView {
+    id: int,
+    source: string,
+    company: string,
+    job-title: string,
+    application-date: Date,
+    time-investment: int,
+    human-response: HumanResponseView,
+    human-response-date: Date,
+    application-website: string,
+    notes: string,
+}
