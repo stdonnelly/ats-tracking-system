@@ -32,6 +32,15 @@ export component SearchBar inherits HorizontalBox {
     // Search by source, company, or human response
     search-box := LineEdit {
         placeholder-text: "Search by text";
+        // Pressing [ENTER] while focused on the search box will trigger the search
+        accepted(text) => {
+            search(
+                // Only use human response when the index is valid and the selected value is not "- Filter by response -"
+                human-response.current-index > 0,
+                Logic.string-to-human-response(human-response.current-value),
+                text
+            );
+        }
     }
 
     search-button := Button {
