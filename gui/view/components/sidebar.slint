@@ -11,7 +11,7 @@ export component Sidebar inherits GridLayout {
     out property <length> sidebar-min-width: self.spacing + (2 * self.padding) + self.col-1-min-width + source-input.min-width;
     
     // Callbacks to be defined elsewhere
-    callback submit-job-application <=> job-application-submit.clicked;
+    callback submit-job-application();
     callback new-job-application();
     callback delete-job-application(int);
     pure callback date-diff <=> Logic.date-diff;
@@ -161,7 +161,7 @@ export component Sidebar inherits GridLayout {
         }
 
         // Custom time input using a horizontal layout of `LineEdit`s
-        HorizontalLayout {
+        time-investment := HorizontalLayout {
             // This is used to update the selected job application after text edit changes
             function store-time() {
                 selected-job-application.time-investment = (time-investment-min.text.to-float() * 60) + time-investment-sec.text.to-float();
@@ -179,8 +179,14 @@ export component Sidebar inherits GridLayout {
                 height: 2.5rem;
                 text: floor(selected-job-application.time-investment / 60);
                 input-type: number;
-                edited(_) => {
-                    store-time();
+                changed has-focus => {
+                    if (self.has-focus) {
+                        // Select the text when the user clicks on the field
+                        self.select-all();
+                    } else {
+                        // When something else is selected, store the time in the selected job application and normalize
+                        store-time();
+                    }
                 }
             }
 
@@ -194,8 +200,14 @@ export component Sidebar inherits GridLayout {
                 height: 2.5rem;
                 text: mod(selected-job-application.time-investment, 60);
                 input-type: number;
-                edited(_) => {
-                    store-time();
+                changed has-focus => {
+                    if (self.has-focus) {
+                        // Select the text when the user clicks on the field
+                        self.select-all();
+                    } else {
+                        // When something else is selected, store the time in the selected job application and normalize
+                        store-time();
+                    }
                 }
             }
         }
@@ -351,6 +363,12 @@ export component Sidebar inherits GridLayout {
 
             job-application-submit := StandardButton {
                 kind: apply;
+                clicked => {
+                    // Store and normalize the time
+                    time-investment.store-time();
+                    // Send the selected job application to the callback
+                    submit-job-application();
+                }
             }
         }
     }
