@@ -16,7 +16,12 @@ export component JobApplicationTable inherits StandardTableView {
         + self.columns[7].min-width
         + self.columns[8].min-width
         + self.columns[9].min-width
-        + self.columns[10].min-width;
+        + self.columns[10].min-width
+        /* This is the extra width of the window needed to display the vertical scrollbar in Qt.
+           The scrollbar is actually narrower than this, but, because the table width is 80% of the window width, the window must grow more.
+           This will cause the window to be larger than necessary where the scrollbar is narrower or has no width.
+           This isn't a huge concern because this is only the preferred width */
+        + 42px;
 
     current-row-changed(current-row) => {
         // Call the backend code to change the sidebar
