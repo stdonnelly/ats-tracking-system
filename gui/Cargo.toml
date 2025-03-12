@@ -13,7 +13,7 @@ path = "src/main.rs"
 repository = { path = "../repository" }
 time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
 # A bug in version 1.9.0 and 1.9.1 causes the date picker widget to never close.
-slint = "1.9.2"
+slint = "1.10.0"
 dotenv = "0.15.0"
 
 [build-dependencies]
