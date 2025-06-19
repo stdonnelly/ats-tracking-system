@@ -625,7 +625,7 @@ fn print_table(
         // Keep even when `file` goes out of scope.
         // This relies on the destructor of `temp_dir` to clean files.
         // The program should clean this as soon as the spreadsheet system is closed, but using a spreadsheet system is a hack anyway.
-        .keep(true)
+        .disable_cleanup(true)
         // Create in the temporary directory
         .tempfile_in(temp_dir)?;
 

@@ -14,7 +14,6 @@ export component Sidebar inherits GridLayout {
     callback submit-job-application();
     callback new-job-application();
     callback delete-job-application(int);
-    pure callback date-diff <=> Logic.date-diff;
 
     // Component styling
     width: 20%;
@@ -291,7 +290,7 @@ export component Sidebar inherits GridLayout {
 
         Text {
             height: 2.5rem;
-            text: Logic.display-if-human-response(selected-job-application.human-response, date-diff(selected-job-application.application-date, selected-job-application.human-response-date));
+            text: Logic.display-if-human-response(selected-job-application.human-response, Logic.date-diff(selected-job-application.application-date, selected-job-application.human-response-date));
             wrap: word-wrap;
         }
     }

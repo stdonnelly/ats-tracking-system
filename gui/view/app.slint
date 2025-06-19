@@ -8,7 +8,7 @@ import { Logic } from "./functions.slint";
 import { Sidebar } from "components/sidebar.slint";
 import { JobApplicationTable } from "components/table.slint";
 import { SearchBar } from "components/search_bar.slint";
-export { DeleteConfirmation, HumanResponseView, JobApplicationView }
+export { DeleteConfirmation, HumanResponseView, JobApplicationView, Logic }
 
 export component AppWindow inherits Window {
     // Callbacks
@@ -19,9 +19,6 @@ export component AppWindow inherits Window {
     callback delete-job-application <=> sidebar.delete-job-application;
     // Re-exported from search bar
     callback search-job-application <=> search-bar.search;
-    // date-diff(Date, Date) is aliased here do the rust code only needs to access this component for anything related to this component
-    // Other components can just bind to Logic.date-diff and it will use the definition here
-    pure callback date-diff <=> Logic.date-diff;
     
     // Properties
     // Might need to be in-out if we will store 
