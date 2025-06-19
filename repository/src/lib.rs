@@ -63,8 +63,10 @@ mod backend_connection {
     pub fn get_conn() -> Result<Connection, rusqlite::Error> {
         // The ats-tracking.db3 file should be placed in the user's home directory
 
-        // The reason this is deprecated is fixed in Rust 1.85 and the deprecation notice will be removed soon.
-        #[allow(deprecated)]
+        // `std::env::home_dir()` is deprecated in Rust < 1.87.0.
+        // You may see a deprecation warning if using an older version.
+        // As long as you are using Rust 1.85.0 or later, or you are not using Windows, everything will work fine.
+        // See the deprecation notice here: https://doc.rust-lang.org/1.86.0/std/env/fn.home_dir.html.
         let home = std::env::home_dir().unwrap_or_else(|| {
             // If home_dir() fails, use current working directory
             eprintln!(
