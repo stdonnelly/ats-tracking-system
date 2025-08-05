@@ -854,15 +854,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cbd0f76e066e64fdc5631e3bb46381254deab9ef1158292f27c8c57e3bf3fe59"
 
 [[package]]
-name = "cmake"
-version = "0.1.54"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7caa3f9de89ddbe2c607f4101924c5abec803763ae9534e4f4d7d8f84aa81f0"
-dependencies = [
- "cc",
-]
-
-[[package]]
 name = "codemap"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3132,13 +3123,14 @@ dependencies = [
 
 [[package]]
 name = "mysql"
-version = "26.0.0"
+version = "26.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "64453aedc258ac8c720b46c8264302fad39cef6c02483f68adbad4bcd22d6fab"
+checksum = "ce2510a735f601bab18202b07ea0a197bd1d130d3a5ce2edf4577d225f0c3ee4"
 dependencies = [
  "bufstream",
  "bytes",
  "crossbeam-queue",
+ "crossbeam-utils",
  "flate2",
  "io-enum",
  "libc",
@@ -3172,35 +3164,30 @@ dependencies = [
 
 [[package]]
 name = "mysql_common"
-version = "0.34.1"
+version = "0.35.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34a9141e735d5bb02414a7ac03add09522466d4db65bdd827069f76ae0850e58"
+checksum = "fbb9f371618ce723f095c61fbcdc36e8936956d2b62832f9c7648689b338e052"
 dependencies = [
  "base64",
  "bitflags 2.9.1",
  "btoi",
  "byteorder",
  "bytes",
- "cc",
- "cmake",
  "crc32fast",
  "flate2",
- "lazy_static",
+ "getrandom 0.3.3",
  "mysql-common-derive",
  "num-bigint",
  "num-traits",
- "rand",
  "regex",
  "saturating",
  "serde",
  "serde_json",
  "sha1",
  "sha2",
- "subprocess",
- "thiserror 1.0.69",
+ "thiserror 2.0.12",
  "time",
  "uuid",
- "zstd",
 ]
 
 [[package]]
@@ -4842,16 +4829,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "subprocess"
-version = "0.2.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0c2e86926081dda636c546d8c5e641661049d7562a68f5488be4a1f7f66f6086"
-dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "svgtypes"
 version = "0.15.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6483,34 +6460,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.103",
-]
-
-[[package]]
-name = "zstd"
-version = "0.13.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a"
-dependencies = [
- "zstd-safe",
-]
-
-[[package]]
-name = "zstd-safe"
-version = "7.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d"
-dependencies = [
- "zstd-sys",
-]
-
-[[package]]
-name = "zstd-sys"
-version = "2.0.15+zstd.1.5.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "eb81183ddd97d0c74cedf1d50d85c8d08c1b8b68ee863bdee9e706eedba1a237"
-dependencies = [
- "cc",
- "pkg-config",
 ]
 
 [[package]]
