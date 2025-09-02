@@ -10,7 +10,7 @@ mysql = ["dep:mysql"]
 
 [dependencies]
 mysql = { version = "26.0.0", features = ["default", "time"], optional = true }
-time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
+time = { version = "0.3.42", features = ["default", "local-offset", "macros", "parsing"] }
 rusqlite = { version = "0.36.0", features = ["bundled", "time"] }
 
 [dev-dependencies]
