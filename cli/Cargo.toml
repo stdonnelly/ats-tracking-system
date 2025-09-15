@@ -13,5 +13,5 @@ path = "src/main.rs"
 repository = { path = "../repository" }
 dotenv = "0.15.0"
 opener = "0.8.2"
-tempfile = "3.12.0"
+tempfile = "3.22.0"
 time = { version = "0.3.36", features = ["default", "local-offset", "macros", "parsing"] }
